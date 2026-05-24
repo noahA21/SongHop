@@ -1,9 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using SongHop.Core.Models;
 
 namespace SongHop.Core.Interfaces;
 
 public record PathResult(
-    List NodeIds, 
+    List<Guid> NodeIds, 
     int MoveCount, 
     double RarityScore, 
     bool IsValid
@@ -12,8 +15,8 @@ public record PathResult(
 public interface IPathfindingService
 {
     // Validates a player's submitted run asynchronously
-    //Task ValidatePathAsync(List submittedPath);
+    Task<PathResult> ValidatePathAsync(List<Guid> submittedPath);
 
     // Used by the background worker to find the 'Goldilocks' daily challenges
-    //Task FindShortestPathAsync(Guid startNodeId, Guid targetNodeId);
+    Task<PathResult> FindShortestPathAsync(Guid startNodeId, Guid targetNodeId);
 }

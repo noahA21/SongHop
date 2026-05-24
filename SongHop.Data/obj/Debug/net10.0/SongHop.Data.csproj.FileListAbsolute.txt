@@ -1,0 +1,15 @@
+C:\Users\battl\Documents\SongHop\SongHop.Data\bin\Debug\net10.0\SongHop.Data.deps.json
+C:\Users\battl\Documents\SongHop\SongHop.Data\bin\Debug\net10.0\SongHop.Data.dll
+C:\Users\battl\Documents\SongHop\SongHop.Data\bin\Debug\net10.0\SongHop.Data.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Data\bin\Debug\net10.0\SongHop.Core.dll
+C:\Users\battl\Documents\SongHop\SongHop.Data\bin\Debug\net10.0\SongHop.Core.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.csproj.AssemblyReference.cache
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.AssemblyInfoInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.AssemblyInfo.cs
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.csproj.CoreCompileInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop..81B437E5.Up2Date
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.dll
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\refint\SongHop.Data.dll
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\SongHop.Data.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Data\obj\Debug\net10.0\ref\SongHop.Data.dll

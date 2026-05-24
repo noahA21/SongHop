@@ -1,0 +1,15 @@
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\bin\Debug\net10.0\SongHop.Pathing.deps.json
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\bin\Debug\net10.0\SongHop.Pathing.dll
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\bin\Debug\net10.0\SongHop.Pathing.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\bin\Debug\net10.0\SongHop.Core.dll
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\bin\Debug\net10.0\SongHop.Core.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.csproj.AssemblyReference.cache
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.AssemblyInfoInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.AssemblyInfo.cs
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.csproj.CoreCompileInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop..A2CC74EC.Up2Date
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.dll
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\refint\SongHop.Pathing.dll
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\SongHop.Pathing.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Pathing\obj\Debug\net10.0\ref\SongHop.Pathing.dll

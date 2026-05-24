@@ -1,0 +1,11 @@
+C:\Users\battl\Documents\SongHop\SongHop.Core\bin\Debug\net10.0\SongHop.Core.deps.json
+C:\Users\battl\Documents\SongHop\SongHop.Core\bin\Debug\net10.0\SongHop.Core.dll
+C:\Users\battl\Documents\SongHop\SongHop.Core\bin\Debug\net10.0\SongHop.Core.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.AssemblyInfoInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.AssemblyInfo.cs
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.csproj.CoreCompileInputs.cache
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.dll
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\refint\SongHop.Core.dll
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\SongHop.Core.pdb
+C:\Users\battl\Documents\SongHop\SongHop.Core\obj\Debug\net10.0\ref\SongHop.Core.dll
