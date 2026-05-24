@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "OtrALVvvg4o=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\battl\\Documents\\SongHop\\SongHop.Api\\SongHop.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\battl\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.8\\microsoft.aspnetcore.openapi.10.0.8.nupkg.sha512",
+    "C:\\Users\\battl\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

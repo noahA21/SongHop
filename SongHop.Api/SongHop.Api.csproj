@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SongHop.Core\SongHop.Core.csproj" />
+    <ProjectReference Include="..\SongHop.Data\SongHop.Data.csproj" />
+    <ProjectReference Include="..\SongHop.Pathing\SongHop.Pathing.csproj" />
+  </ItemGroup>
+
+</Project>

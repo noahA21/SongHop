@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SongHop.Api/SongHop.Api.csproj" />
+  <Project Path="SongHop.Core/SongHop.Core.csproj" />
+  <Project Path="SongHop.Data/SongHop.Data.csproj" />
+  <Project Path="SongHop.Pathing/SongHop.Pathing.csproj" />
+</Solution>
