@@ -2,15 +2,34 @@ using Microsoft.AspNetCore.Mvc;
 using SongHop.Api.Mocks;
 using SongHop.Core.Interfaces;
 using SongHop.Pathing.Services;
+using Microsoft.EntityFrameworkCore;
+using SongHop.Data;
+using SongHop.Data.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Dependency Injection setup
-// Register our mock database as a Singleton (so it keeps data in memory)
-builder.Services.AddSingleton<MockGraphRepository>();
-// Map the interface to the mock implementation
-builder.Services.AddSingleton<IGraphRepository>(sp => sp.GetRequiredService<MockGraphRepository>());
-// Register the engine we wrote earlier
+// 1. Hook up PostgreSQL Connection String
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Host=localhost;Database=songhop_db;Username=postgres;Password=postgres_password";
+
+builder.Services.AddDbContext<SongHopDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularDev",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:4200") // Angular's default port
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+// builder.Services.AddScoped<IGraphRepository, GraphRepository>();
+// 2. Register the real Postgres Repository
+builder.Services.AddScoped<IGraphRepository, PostgresGraphRepository>();
+
+// 3. Keep our pathfinding service (it seamlessly transitions from Mock to Postgres!)
 builder.Services.AddScoped<IPathfindingService, PathfindingService>();
 
 // Add Swagger for easy testing
@@ -27,7 +46,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // 2. Define API Endpoints
-
+app.UseCors("AllowAngularDev");
 // Helper endpoint just to get our fake IDs for testing
 app.MapGet("/v1/test/nodes", (MockGraphRepository repo) => 
 {

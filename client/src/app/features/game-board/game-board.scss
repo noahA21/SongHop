@@ -1,0 +1,181 @@
+/* client/src/app/features/game-board/game-board.component.scss */
+
+// Screen reader utility for strict WCAG semantic context
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.game-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #f3f4f6;
+  background-color: #111827; // Dark, energy-efficient background
+  min-height: 85vh;
+  border-radius: 12px;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #374151;
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    background: linear-gradient(to right, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .score-badge {
+    background-color: #1f2937;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid #4b5563;
+    font-size: 1rem;
+    
+    strong {
+      color: #60a5fa;
+    }
+  }
+}
+
+.game-hud {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0;
+
+  .hud-card {
+    flex: 1;
+    background-color: #1f2937;
+    padding: 1.25rem;
+    border-radius: 8px;
+    border-left: 4px solid #4b5563;
+
+    span {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+    }
+
+    h2 {
+      margin: 0.5rem 0 0 0;
+      font-size: 1.25rem;
+    }
+
+    &.start { border-left-color: #3b82f6; }
+    &.target { border-left-color: #ec4899; }
+  }
+
+  .hud-divider {
+    font-size: 1.5rem;
+    color: #4b5563;
+  }
+}
+
+.status-banner {
+  background-color: #1e3a8a;
+  border: 1px solid #2563eb;
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: 500;
+
+  &.victory-banner {
+    background-color: #064e3b;
+    border-color: #059669;
+    color: #a7f3d0;
+  }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.artist-button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1.25rem;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #2d3748;
+    border-color: #4b5563;
+  }
+
+  // Strict Accessible Keyboard Focus Management (WCAG AA Compliant contrast)
+  &:focus-visible {
+    outline: 3px solid #60a5fa;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .artist-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #ffffff;
+  }
+
+  .artist-meta {
+    font-size: 0.85rem;
+    color: #9ca3af;
+  }
+}
+
+.victory-screen {
+  text-align: center;
+  padding: 3rem 1rem;
+  background-color: #111827;
+  border: 2px dashed #059669;
+  border-radius: 12px;
+
+  h2 { font-size: 2.5rem; margin-bottom: 1rem; }
+  p { color: #9ca3af; margin-bottom: 2rem; }
+}
+
+.action-button-primary {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover { background-color: #1d4ed8; }
+  &:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+}

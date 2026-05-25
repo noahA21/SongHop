@@ -1,0 +1,71 @@
+<main class="game-container">
+  
+  <header class="game-header">
+    <h1>SongHop</h1>
+    <div class="score-badge" role="status" aria-live="polite">
+      Hops: <strong>{{ moveCount() }}</strong>
+    </div>
+  </header>
+
+  @if (errorMessage(); as error) {
+    <div class="alert-box" role="alert">
+      <p>{{ error }}</p>
+      <button (click)="startNewGame()" type="button">Retry Connection</button>
+    </div>
+  }
+
+  <section class="game-hud" aria-label="Current Mission Objective">
+    <div class="hud-card start">
+      <span>Start</span>
+      <h2>{{ startNode()?.name ?? '...' }}</h2>
+    </div>
+    
+    <div class="hud-divider" aria-hidden="true">➔</div>
+    
+    <div class="hud-card target">
+      <span>Target Destination</span>
+      <h2>{{ targetNode()?.name ?? '...' }}</h2>
+    </div>
+  </section>
+
+  <div class="status-banner" role="status" aria-live="polite" [class.victory-banner]="hasWon()">
+    <p>{{ gameStatusMessage() }}</p>
+  </div>
+
+  @if (!hasWon() && !errorMessage()) {
+    <section class="interaction-area" aria-label="Available Hops">
+      <h3 class="sr-only">Select the next artist to hop to</h3>
+      
+      <ul class="card-grid">
+        @for (artist of neighbors(); track artist.id) {
+          <li>
+            <button 
+              type="button"
+              class="artist-button"
+              [disabled]="isLoading()"
+              (click)="makeHop(artist)"
+              [attr.aria-label]="'Hop to ' + artist.name + ', Popularity rating ' + artist.popularityScore">
+              <span class="artist-name">{{ artist.name }}</span>
+              <span class="artist-meta">Popularity: {{ artist.popularityScore }}</span>
+            </button>
+          </li>
+        } @empty {
+          @if (!isLoading()) {
+            <li class="empty-state">
+              <p>Dead end! This artist has no documented collaborations in our records.</p>
+              <button (click)="startNewGame()" type="button" class="reset-button">Try Another Track</button>
+            </li>
+          }
+        }
+      </ul>
+    </section>
+  }
+
+  @if (hasWon()) {
+    <section class="victory-screen" aria-live="assertive">
+      <h2>🎉 Path Unlocked!</h2>
+      <p>You connected the graph seamlessly.</p>
+      <button (click)="startNewGame()" type="button" class="action-button-primary">Play Next Round</button>
+    </section>
+  }
+</main>
