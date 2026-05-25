@@ -40,17 +40,16 @@ namespace SongHop.Data.Migrations
                     b.Property<Guid>("TargetId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SourceId");
-
                     b.HasIndex("TargetId");
 
-                    b.ToTable("Edges", (string)null);
+                    b.HasIndex("SourceId", "TargetId");
+
+                    b.ToTable("Edges");
                 });
 
             modelBuilder.Entity("SongHop.Core.Models.Node", b =>
@@ -73,16 +72,14 @@ namespace SongHop.Data.Migrations
                     b.Property<string>("SpotifyId")
                         .HasColumnType("text");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SpotifyId")
-                        .IsUnique();
+                    b.HasIndex("Name");
 
-                    b.ToTable("Nodes", (string)null);
+                    b.ToTable("Nodes");
                 });
 
             modelBuilder.Entity("SongHop.Core.Models.Edge", b =>

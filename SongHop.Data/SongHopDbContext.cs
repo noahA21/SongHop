@@ -1,4 +1,3 @@
-// SongHop.Data/SongHopDbContext.cs
 using Microsoft.EntityFrameworkCore;
 using SongHop.Core.Models;
 
@@ -17,38 +16,34 @@ public class SongHopDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Map Node Entity
+        // --- Configure Node Schema ---
         modelBuilder.Entity<Node>(entity =>
         {
-            entity.ToTable("Nodes");
             entity.HasKey(n => n.Id);
             entity.Property(n => n.Name).IsRequired().HasMaxLength(255);
-            entity.Property(n => n.Type).HasConversion<string>(); // Store enum as string
-            entity.Property(n => n.PopularityScore).IsRequired();
-            entity.HasIndex(n => n.SpotifyId).IsUnique();
+            // Index the name for lightning-fast autocomplete search queries later
+            entity.HasIndex(n => n.Name); 
         });
 
-        // Map Edge Entity (The Graph Adjacency List)
+        // --- Configure Edge (Graph Relationship) Schema ---
         modelBuilder.Entity<Edge>(entity =>
         {
-            entity.ToTable("Edges");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Type).HasConversion<string>(); // Store enum as string
-            
-            // Set up the self-referencing relationship for the graph
-            entity.HasOne<Node>()
-                  .WithMany()
-                  .HasForeignKey(e => e.SourceId)
-                  .OnDelete(DeleteBehavior.Cascade);
 
+            // Map the foreign key for the source artist
             entity.HasOne<Node>()
-                  .WithMany()
-                  .HasForeignKey(e => e.TargetId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                .WithMany()
+                .HasForeignKey(e => e.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            // Index source and target lookups for ultra-fast BFS traversal
-            entity.HasIndex(e => e.SourceId);
-            entity.HasIndex(e => e.TargetId);
+            // Map the foreign key for the target artist
+            entity.HasOne<Node>()
+                .WithMany()
+                .HasForeignKey(e => e.TargetId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Create a composite index to keep graph edge lookup lookups lightning fast
+            entity.HasIndex(e => new { e.SourceId, e.TargetId });
         });
     }
 }

@@ -1,0 +1,48 @@
+<section class="search-section" aria-labelledby="search-heading">
+  <h2 id="search-heading" class="sr-only">Search Artists</h2>
+
+  <form [formGroup].="searchForm" (ngSubmit)="onSearch()" class="search-form" novalidate>
+    <div class="input-group">
+      <label for="artistNameInput">Find an Artist</label>
+      <input 
+        id="artistNameInput"
+        type="search" 
+        formControlName="artistName" 
+        placeholder="e.g., Radiohead, Daft Punk"
+        [attr.aria-invalid]="searchForm.get('artistName')?.touched && searchForm.get('artistName')?.invalid"
+        aria-describedby="searchError">
+    </div>
+
+    <button 
+      type="submit" 
+      class="search-button" 
+      [disabled]="isSearching()">
+      {{ isSearching() ? 'Searching...' : 'Search' }}
+    </button>
+  </form>
+
+  @if (searchForm.get('artistName')?.touched && searchForm.get('artistName')?.invalid) {
+    <p id="searchError" class="field-error" role="alert">
+      Please enter at least 2 characters to search.
+    </p>
+  }
+
+  <div class="results-container" aria-live="polite">
+    @if (searchResults().length > 0) {
+      <ul class="results-list">
+        @for (artist of searchResults(); track artist.id) {
+          <li>
+            <div class="result-item">
+              <span class="name">{{ artist.name }}</span>
+              <span class="meta">Popularity Score: {{ artist.popularityScore }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+    } @else {
+      @if (!isSearching() && searchForm.get('artistName')?.value) {
+        <p class="no-results">No artists found matching that query.</p>
+      }
+    }
+  </div>
+</section>

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SongHop.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a966612901609033a39e488fbb045a7e3936b3f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+09990088398ba2b4d090f53094b976ef4019f34c")]
 [assembly: System.Reflection.AssemblyProductAttribute("SongHop.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SongHop.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,0 +1,84 @@
+/* client/src/app/features/artist-search/artist-search.component.scss */
+.search-section {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem auto;
+  max-width: 900px;
+}
+
+.search-form {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #9ca3af;
+  }
+
+  input {
+    background-color: #111827;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    color: #ffffff;
+    font-size: 1rem;
+
+    &:focus-visible {
+      outline: 3px solid #60a5fa;
+      outline-offset: -1px;
+    }
+  }
+}
+
+.search-button {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  height: 46px;
+
+  &:hover:not(:disabled) { background-color: #2563eb; }
+  &:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.field-error {
+  color: #f87171;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.results-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0 0;
+  border-top: 1px solid #374151;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #374151;
+  color: #f3f4f6;
+
+  .name { font-weight: 600; }
+  .meta { font-size: 0.85rem; color: #9ca3af; }
+}

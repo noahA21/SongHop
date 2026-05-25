@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SongHop.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialGraphCreate : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,7 +17,7 @@ namespace SongHop.Data.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    Type = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
                     PopularityScore = table.Column<int>(type: "integer", nullable: false),
                     ImageUrl = table.Column<string>(type: "text", nullable: true),
                     SpotifyId = table.Column<string>(type: "text", nullable: true)
@@ -34,7 +34,7 @@ namespace SongHop.Data.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     SourceId = table.Column<Guid>(type: "uuid", nullable: false),
                     TargetId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Type = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
                     IsDirected = table.Column<bool>(type: "boolean", nullable: false),
                     BaseWeight = table.Column<double>(type: "double precision", nullable: false)
                 },
@@ -56,9 +56,9 @@ namespace SongHop.Data.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Edges_SourceId",
+                name: "IX_Edges_SourceId_TargetId",
                 table: "Edges",
-                column: "SourceId");
+                columns: new[] { "SourceId", "TargetId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Edges_TargetId",
@@ -66,10 +66,9 @@ namespace SongHop.Data.Migrations
                 column: "TargetId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Nodes_SpotifyId",
+                name: "IX_Nodes_Name",
                 table: "Nodes",
-                column: "SpotifyId",
-                unique: true);
+                column: "Name");
         }
 
         /// <inheritdoc />

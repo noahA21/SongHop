@@ -1,9 +1,9 @@
 import { Routes } from '@angular/router';
 import { GameBoardComponent } from './features/game-board/game-board.component';
+import { ArtistSearchComponent } from './features/artist-search/artist-search.component';
 
 export const routes: Routes = [
-  // Direct route to your game board feature
   { path: '', component: GameBoardComponent },
-  // Fallback redirect for broken links
+  { path: 'database', component: ArtistSearchComponent }, // <-- Map our new page layout here
   { path: '**', redirectTo: '' }
 ];
