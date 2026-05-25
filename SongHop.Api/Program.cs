@@ -55,10 +55,11 @@ if (app.Environment.IsDevelopment())
 
 // 2. Define API Endpoints
 app.UseCors("AllowAngularDev");
-// Helper endpoint just to get our fake IDs for testing
-app.MapGet("/v1/test/nodes", (MockGraphRepository repo) => 
+// 🔄 Update this in Program.cs to fetch real database items for testing
+app.MapGet("/v1/test/nodes", async (SongHopDbContext db) => 
 {
-    return Results.Ok(repo.GetAllNodes());
+    var nodes = await db.Nodes.ToListAsync();
+    return Results.Ok(nodes);
 });
 
 app.MapPost("/v1/admin/seed", async (SongHopDbContext db) =>

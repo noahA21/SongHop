@@ -1,7 +1,7 @@
 <section class="search-section" aria-labelledby="search-heading">
   <h2 id="search-heading" class="sr-only">Search Artists</h2>
 
-  <form [formGroup].="searchForm" (ngSubmit)="onSearch()" class="search-form" novalidate>
+  <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-form" novalidate>
     <div class="input-group">
       <label for="artistNameInput">Find an Artist</label>
       <input 

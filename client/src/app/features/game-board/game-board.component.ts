@@ -16,17 +16,22 @@ export class GameBoardComponent implements OnInit {
   readonly targetNode = signal<Node | null>(null);
   readonly currentNode = signal<Node | null>(null);
   readonly neighbors = signal<Node[]>([]);
-  readonly pathHistory = signal<Node[]>([]);
+  readonly pathHistory = signal<Node[]>([]); // Tracks steps taken AFTER the start node
   
   readonly isLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly hasWon = signal<boolean>(false);
+  readonly isPathVerified = signal<boolean>(false); // 🆕 Added to track server validation status
 
   // --- Derived State (Computed Signals) ---
   readonly moveCount = computed(() => this.pathHistory().length);
   
   readonly gameStatusMessage = computed(() => {
-    if (this.hasWon()) return `Victory! You reached the target in ${this.moveCount()} hops!`;
+    if (this.hasWon()) {
+      return this.isPathVerified() 
+        ? `Victory verified! You reached the target in ${this.moveCount()} hops!`
+        : 'Reaching target... Verifying route integrity with server...';
+    }
     if (this.isLoading()) return 'Loading adjacent nodes...';
     return `Currently at ${this.currentNode()?.name ?? 'Unknown Artist'}`;
   });
@@ -39,6 +44,7 @@ export class GameBoardComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
     this.hasWon.set(false);
+    this.isPathVerified.set(false);
     this.pathHistory.set([]);
 
     this.gameService.getTestNodes().subscribe({
@@ -72,6 +78,7 @@ export class GameBoardComponent implements OnInit {
     // Check Win Condition
     if (selectedNode.id === this.targetNode()?.id) {
       this.hasWon.set(true);
+      this.validatePathOnServer(); // 🆕 Call server anti-cheat verification on victory
       return;
     }
 
@@ -80,15 +87,40 @@ export class GameBoardComponent implements OnInit {
   }
 
   private loadNeighbors(nodeId: string): void {
-    this.isLoading.set(true);
-    this.gameService.expandNode(nodeId).subscribe({
-      next: (data) => {
-        this.neighbors.set(data);
-        this.isLoading.set(false);
+  this.isLoading.set(true);
+  this.gameService.expandNode(nodeId).subscribe({
+    next: (data) => {
+      // 🔄 Dig into the response object to pull out just the nodes array
+      this.neighbors.set(data.nodes || []);
+      this.isLoading.set(false);
+    },
+    error: () => {
+      this.errorMessage.set('Error fetching adjacent paths.');
+      this.isLoading.set(false);
+    }
+  });
+}
+
+  /**
+   * 🆕 Assembles full traversal trace history and ensures it matches backend relationships
+   */
+  private validatePathOnServer(): void {
+    const start = this.startNode();
+    if (!start) return;
+
+    // Combine starting ID with consecutive path history entries to form complete traversal trace
+    const completeSubmittedPath = [start.id, ...this.pathHistory().map(n => n.id)];
+
+    this.gameService.validatePath(completeSubmittedPath).subscribe({
+      next: (result) => {
+        if (result.isValid) {
+          this.isPathVerified.set(true);
+        } else {
+          this.errorMessage.set('Server rejected path validation: Illegal movement step caught.');
+        }
       },
       error: () => {
-        this.errorMessage.set('Error fetching adjacent paths.');
-        this.isLoading.set(false);
+        this.errorMessage.set('Target hit, but failed to connect to path validation server.');
       }
     });
   }

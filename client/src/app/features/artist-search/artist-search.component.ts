@@ -5,6 +5,7 @@ import { GameService, Node } from '../../core/services/game.service';
 
 @Component({
   selector: 'app-artist-search',
+  standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './artist-search.component.html',
   styleUrl: './artist-search.component.scss',
@@ -19,7 +20,7 @@ export class ArtistSearchComponent {
   readonly isSearching = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
-  // --- Strict Reactive Form Setup ---
+  // 🔄 Restored the proper FormGroup matching your HTML layout
   readonly searchForm = this.fb.group({
     artistName: ['', [Validators.required, Validators.minLength(2)]]
   });
@@ -30,14 +31,14 @@ export class ArtistSearchComponent {
       return;
     }
 
+    // Now safely extract the string value from the form group control
     const query = this.searchForm.value.artistName;
     this.isSearching.set(true);
     this.errorMessage.set(null);
 
-    // Reusing the test node endpoint for now until the backend search endpoint is ready
     this.gameService.getTestNodes().subscribe({
       next: (nodes) => {
-        // Simple client-side mock filter for testing the interface mechanics
+        // Client-side filter matching against database elements
         const filtered = nodes.filter(node => 
           node.name.toLowerCase().includes(query?.toLowerCase() ?? '')
         );

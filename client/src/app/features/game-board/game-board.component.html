@@ -1,71 +1,60 @@
-<main class="game-container">
-  
-  <header class="game-header">
-    <h1>SongHop</h1>
-    <div class="score-badge" role="status" aria-live="polite">
-      Hops: <strong>{{ moveCount() }}</strong>
-    </div>
+<div class="songhop-workspace" style="max-width: 600px; margin: 40px auto; font-family: system-ui, sans-serif;">
+  <header style="border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
+    <h1 style="margin: 0; color: #1db954;">🎵 SongHop</h1>
+    <p style="margin: 5px 0 0; color: #666;">Full-Stack Connection Test Engine</p>
   </header>
 
-  @if (errorMessage(); as error) {
-    <div class="alert-box" role="alert">
-      <p>{{ error }}</p>
-      <button (click)="startNewGame()" type="button">Retry Connection</button>
+  <div class="scorecard" style="background: #f4f4f5; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+    <div style="margin-bottom: 8px;">
+      Target Node: <strong style="color: #dc2626;">{{ targetNode()?.name ?? 'Loading...' }}</strong> 
+      <small style="color: #71717a; display: block;">ID: {{ targetNode()?.id }}</small>
+    </div>
+    <div style="margin-top: 12px; border-top: 1px solid #e4e4e7; padding-top: 8px;">
+      Current Position: <strong style="color: #2563eb;">{{ currentNode()?.name ?? 'Loading...' }}</strong>
+    </div>
+    <div style="margin-top: 10px; font-weight: bold;">Hops Taken: {{ moveCount() }}</div>
+  </div>
+
+  @if (errorMessage()) {
+    <div style="padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 500; text-align: center; background: #fee2e2; color: #991b1b;">
+      {{ errorMessage() }}
     </div>
   }
 
-  <section class="game-hud" aria-label="Current Mission Objective">
-    <div class="hud-card start">
-      <span>Start</span>
-      <h2>{{ startNode()?.name ?? '...' }}</h2>
+  @if (gameStatusMessage() && !errorMessage()) {
+    <div style="padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 500; text-align: center; background: #e0f2fe; color: #0369a1;">
+      {{ gameStatusMessage() }}
     </div>
-    
-    <div class="hud-divider" aria-hidden="true">➔</div>
-    
-    <div class="hud-card target">
-      <span>Target Destination</span>
-      <h2>{{ targetNode()?.name ?? '...' }}</h2>
-    </div>
-  </section>
+  }
 
-  <div class="status-banner" role="status" aria-live="polite" [class.victory-banner]="hasWon()">
-    <p>{{ gameStatusMessage() }}</p>
-  </div>
-
-  @if (!hasWon() && !errorMessage()) {
-    <section class="interaction-area" aria-label="Available Hops">
-      <h3 class="sr-only">Select the next artist to hop to</h3>
+  @if (!hasWon()) {
+    <h3 style="margin-bottom: 12px;">Choose Next Traversal Link:</h3>
+    <div class="grid" style="display: grid; gap: 10px; grid-template-columns: 1fr 1fr;">
       
-      <ul class="card-grid">
-        @for (artist of neighbors(); track artist.id) {
-          <li>
-            <button 
-              type="button"
-              class="artist-button"
-              [disabled]="isLoading()"
-              (click)="makeHop(artist)"
-              [attr.aria-label]="'Hop to ' + artist.name + ', Popularity rating ' + artist.popularityScore">
-              <span class="artist-name">{{ artist.name }}</span>
-              <span class="artist-meta">Popularity: {{ artist.popularityScore }}</span>
-            </button>
-          </li>
-        } @empty {
-          @if (!isLoading()) {
-            <li class="empty-state">
-              <p>Dead end! This artist has no documented collaborations in our records.</p>
-              <button (click)="startNewGame()" type="button" class="reset-button">Try Another Track</button>
-            </li>
-          }
+      @for (artist of neighbors(); track artist.id) {
+        <button 
+          [disabled]="isLoading()"
+          (click)="makeHop(artist)"
+          style="padding: 14px; background: #fff; border: 1px solid #e4e4e7; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-align: left;"
+          onmouseover="this.style.background='#f4f4f5'"
+          onmouseout="this.style.background='#fff'">
+          👩‍🎤 {{ artist.name }}
+        </button>
+      } @empty {
+        @if (!isLoading()) {
+          <div style="color: #71717a; font-style: italic; margin-top: 10px;">
+            This artist is a dead end! No connections found in database.
+          </div>
         }
-      </ul>
-    </section>
+      }
+    </div>
   }
 
   @if (hasWon()) {
-    <section class="victory-screen" aria-live="assertive">
-      <h2>🎉 Path Unlocked!</h2>
-      <p>You connected the graph seamlessly.</p>
-      <button (click)="startNewGame()" type="button" class="action-button-primary">Play Next Round</button>
-    </section>
+    <div style="margin-top: 20px; text-align: center;">
+      <button (click)="$event.stopPropagation(); startNewGame()" style="padding: 12px 24px; background: #1db954; color: white; border: none; border-radius: 20px; font-weight: bold; cursor: pointer;">
+        🔄 Play Another Round
+      </button>
+    </div>
   }
-</main>
+</div>

@@ -9,6 +9,22 @@ export interface Node {
   popularityScore: number;
 }
 
+export interface Edge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: string;
+  isBidirectional: boolean;
+  weight: number;
+}
+
+// 🆕 Add an explicit match for your backend's return JSON structure
+export interface ExpandNodeResponse {
+  edges: any[];
+  nodes: Node[];
+}
+
+// Matches the backend PathResult record type
 export interface PathResult {
   nodeIds: string[];
   moveCount: number;
@@ -20,24 +36,31 @@ export interface PathResult {
   providedIn: 'root'
 })
 export class GameService {
-  // Using modern inject() function instead of constructor injection
   private readonly http = inject(HttpClient);
   
-  // Update this to match your .NET API port!
+  // Double-check your actual running .NET Kestrel port!
   private readonly apiUrl = 'http://localhost:5017/v1'; 
 
-  getTestNodes(): Observable<Node[]> {
+ getTestNodes(): Observable<Node[]> {
     return this.http.get<Node[]>(`${this.apiUrl}/test/nodes`);
   }
 
-  expandNode(nodeId: string): Observable<Node[]> {
-    return this.http.get<Node[]>(`${this.apiUrl}/node/expand/${nodeId}`);
+  // ✅ Updated to expect the complex object matching your backend controller
+  expandNode(nodeId: string): Observable<ExpandNodeResponse> {
+    return this.http.get<ExpandNodeResponse>(`${this.apiUrl}/node/expand/${nodeId}`);
   }
 
   getSmartPath(startId: string, targetId: string): Observable<PathResult> {
     return this.http.post<PathResult>(`${this.apiUrl}/path/smart`, {
       startNodeId: startId,
       targetNodeId: targetId
+    });
+  }
+
+  // ✅ Added to hit your backend validation endpoint when the game wraps up
+  validatePath(submittedPath: string[]): Observable<PathResult> {
+    return this.http.post<PathResult>(`${this.apiUrl}/path/validate`, {
+      submittedPath: submittedPath
     });
   }
 }
