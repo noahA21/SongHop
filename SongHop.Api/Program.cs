@@ -37,6 +37,7 @@ builder.Services.AddSingleton<IGraphRepository>(provider =>
 builder.Services.AddScoped<IGraphRepository, PostgresGraphRepository>();
 
 // 3. Keep our pathfinding service (it seamlessly transitions from Mock to Postgres!)
+builder.Services.AddScoped<PathfindingService>();
 builder.Services.AddScoped<IPathfindingService, PathfindingService>();
 
 // Add Swagger for easy testing
@@ -90,6 +91,23 @@ app.MapPost("/v1/admin/seed", async (SongHopDbContext db) =>
 
     return Results.Ok(new { Message = "Seed successful" });
 });
+
+app.MapPost("/v1/game/path", async (
+    [FromQuery] Guid startId, 
+    [FromQuery] Guid targetId, 
+    [FromServices] IPathfindingService pathfinder) => // 🔄 Swapped to the interface
+{
+    var result = await pathfinder.FindShortestPathAsync(startId, targetId);
+    
+    // 1. Check the record's IsValid flag instead of a null check
+    if (!result.IsValid){
+        return Results.NotFound("No path found between these artists.");
+    }
+
+    // 2. Pull MoveCount and NodeIds directly from the result object
+    return Results.Ok(new { Steps = result.MoveCount, Path = result.NodeIds });
+});
+
 
 // The endpoint the frontend uses when a player clicks an artist to see their connections
 app.MapGet("/v1/node/expand/{id:guid}", async (Guid id, IGraphRepository repo) => 

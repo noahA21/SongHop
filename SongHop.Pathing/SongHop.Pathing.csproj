@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SongHop.Core\SongHop.Core.csproj" />
+    <ProjectReference Include="..\SongHop.Data\SongHop.Data.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

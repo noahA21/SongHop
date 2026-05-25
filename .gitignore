@@ -1,1 +1,60 @@
+# ==========================================
+# .NET / C# / Visual Studio / VS Code
+# ==========================================
+*.swp
+*.*~
+project.lock.json
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+[Log]/
+SongHop.Api/bin/Debug/
+# Visual Studio & VS Code files
+.vs/
 .vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# EF Core Migrations transient files
+*.pfx
+
+# ==========================================
+# Angular / Node / Frontend
+# ==========================================
+node_modules/
+.angular/
+dist/
+tmp/
+.sass-cache/
+connect.lock
+coverage/
+libpeerconnection.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# Docker & Databases
+# ==========================================
+.docker/
+# If you map local database volumes to a folder inside your directory:
+pgdata/
+postgres_data/
+
+# ==========================================
+# Secrets & Environment Configurations
+# ==========================================
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+usersecrets.json
