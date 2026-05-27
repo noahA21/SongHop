@@ -1,49 +1,47 @@
+// server/SongHop.Data/SongHopDbContext.cs
 using Microsoft.EntityFrameworkCore;
-using SongHop.Core.Models;
-
-namespace SongHop.Data;
+using Microsoft.EntityFrameworkCore.Design;
+using SongHop.Core.Models; // 🚨 Using your exact namespace
 
 public class SongHopDbContext : DbContext
 {
-    public SongHopDbContext(DbContextOptions<SongHopDbContext> options) : base(options)
-    {
-    }
+    public SongHopDbContext(DbContextOptions<SongHopDbContext> options) : base(options) { }
 
-    public DbSet<Node> Nodes => Set<Node>();
-    public DbSet<Edge> Edges => Set<Edge>();
+    public DbSet<Node> Nodes { get; set; }
+    public DbSet<Edge> Edges { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder);
-
-        // --- Configure Node Schema ---
+        // 1. Configure Node Record
         modelBuilder.Entity<Node>(entity =>
         {
             entity.HasKey(n => n.Id);
-            entity.Property(n => n.Name).IsRequired().HasMaxLength(255);
-            // Index the name for lightning-fast autocomplete search queries later
-            entity.HasIndex(n => n.Name); 
+
+            // 🌟 CRITICAL FOR THE ETL CRAWLER: 
+            // Enforce that ExternalId must be unique so duplicates are blocked at the database level.
+            entity.HasIndex(n => n.ExternalId)
+                  .IsUnique();
         });
 
-        // --- Configure Edge (Graph Relationship) Schema ---
+        // 2. Configure Edge Record
         modelBuilder.Entity<Edge>(entity =>
         {
             entity.HasKey(e => e.Id);
 
-            // Map the foreign key for the source artist
+            // Set up the self-referencing relationship using your Guid FKs
             entity.HasOne<Node>()
-                .WithMany()
-                .HasForeignKey(e => e.SourceId)
-                .OnDelete(DeleteBehavior.Cascade);
+                  .WithMany()
+                  .HasForeignKey(e => e.SourceId)
+                  .OnDelete(DeleteBehavior.Restrict); // Prevents accidental deletes tearing down the graph
 
-            // Map the foreign key for the target artist
             entity.HasOne<Node>()
-                .WithMany()
-                .HasForeignKey(e => e.TargetId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Create a composite index to keep graph edge lookup lookups lightning fast
-            entity.HasIndex(e => new { e.SourceId, e.TargetId });
+                  .WithMany()
+                  .HasForeignKey(e => e.TargetId)
+                  .OnDelete(DeleteBehavior.Restrict);
+                  
+            // Enforce unique edges so we don't map the same connection twice
+            entity.HasIndex(e => new { e.SourceId, e.TargetId })
+                  .IsUnique();
         });
     }
 }

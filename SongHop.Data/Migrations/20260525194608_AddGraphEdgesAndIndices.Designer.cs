@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SongHop.Data.Migrations
 {
     [DbContext(typeof(SongHopDbContext))]
-    partial class SongHopDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260525194608_AddGraphEdgesAndIndices")]
+    partial class AddGraphEdgesAndIndices
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,9 +61,6 @@ namespace SongHop.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ExternalId")
-                        .HasColumnType("text");
-
                     b.Property<string>("ImageUrl")
                         .HasColumnType("text");
 
@@ -71,12 +71,15 @@ namespace SongHop.Data.Migrations
                     b.Property<int>("PopularityScore")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SpotifyId")
+                        .HasColumnType("text");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
+                    b.HasIndex("SpotifyId")
                         .IsUnique();
 
                     b.ToTable("Nodes");
