@@ -24,6 +24,8 @@ services.AddHttpClient();
 services.AddDbContext<SongHopDbContext>(options => options.UseNpgsql(connectionString));
 services.AddSingleton<IConfiguration>(configuration); 
 services.AddSingleton<LastFmClientService>();
+services.AddSingleton<MusicBrainzClientService>();
+
 var serviceProvider = services.BuildServiceProvider();
 
 #endregion
@@ -103,6 +105,78 @@ Console.WriteLine("\n🏁 SongHop ETL Pipeline completed successfully!");
 Console.WriteLine($"Total processed hub nodes: {processedNodesCount}. Core graph is now populated.");
 
 #endregion
+// =========================================================================
+// NEW: PHASE 2 - BATCH MUSICBRAINZ ENRICHMENT
+// =========================================================================
+Console.WriteLine("\n⏳ Transitioning to Phase 2: MusicBrainz Metadata Enrichment...");
+
+// Create a clean scope to pull the DB context and MusicBrainz service
+using (var enrichmentScope = serviceProvider.CreateScope())
+{
+    var dbContext = enrichmentScope.ServiceProvider.GetRequiredService<SongHopDbContext>();
+    var mbClient = enrichmentScope.ServiceProvider.GetRequiredService<MusicBrainzClientService>();
+
+    // 1. Query Postgres for nodes that have a MusicBrainz ID but haven't been enriched yet
+    var unenrichedNodes = await dbContext.Nodes
+        .Where(n => n.ExternalId != null && n.Country == null)
+        .ToListAsync();
+
+    Console.WriteLine($"🔍 Found {unenrichedNodes.Count} artists awaiting metadata enrichment.");
+
+    int enrichedCount = 0;
+
+    foreach (var node in unenrichedNodes)
+    {
+        Console.Write($"📥 Enriching [{node.Name}] ({node.ExternalId})... ");
+
+        // 2. Fetch the metadata from the MusicBrainz API
+        var metadata = await mbClient.GetArtistMetadataAsync(node.ExternalId!);
+
+        if (metadata != null)
+        {
+            // 3. Map the fields over to our mutable properties in the Node record body
+            node.Country = metadata.Country;
+            node.ArtistType = metadata.ArtistType;
+            node.StartYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.Begin);
+            node.EndYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.End);
+
+            // 4. Save progress immediately node-by-node. 
+            // Because we have a mandatory 1.2 second delay anyway, saving individually 
+            // takes milliseconds and guarantees that we don't lose progress if the app is stopped.
+            await dbContext.SaveChangesAsync();
+            
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("SUCCESS");
+            Console.ResetColor();
+            enrichedCount++;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("SKIPPED (No data found or rate limited)");
+            Console.ResetColor();
+        }
+
+        // 5. THE ARRESTING THROTTLE: Enforce strict compliance with MusicBrainz's 1-request-per-second rule
+        await Task.Delay(1200); 
+    }
+
+    Console.WriteLine($"\n🎉 Phase 2 Complete! Successfully enriched {enrichedCount} nodes with structural catalog metadata.");
+}
+
+// 💡 Helper function to parse MusicBrainz dates (like "1993-05-12" or "1993") into a clean C# integer
+int? ParseYearFromMusicBrainz(string? dateString)
+{
+    if (string.IsNullOrWhiteSpace(dateString)) return null;
+    
+    // MusicBrainz dates always start with the 4-digit year
+    if (dateString.Length >= 4 && int.TryParse(dateString.Substring(0, 4), out int year))
+    {
+        return year;
+    }
+    
+    return null;
+}
 
 #region 4. Data Mapping & Resilient Upsert Utilities
 
