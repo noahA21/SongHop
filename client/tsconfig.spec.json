@@ -12,3 +12,5 @@
     "src/**/*.d.ts"
   ]
 }
+// var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+//     ?? throw new InvalidOperationException("'DefaultConnection' connection string is missing from configuration files.");

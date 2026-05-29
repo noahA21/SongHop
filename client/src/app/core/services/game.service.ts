@@ -1,3 +1,4 @@
+// client/src/app/core/services/game.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -18,13 +19,11 @@ export interface Edge {
   weight: number;
 }
 
-// 🆕 Add an explicit match for your backend's return JSON structure
 export interface ExpandNodeResponse {
-  edges: any[];
+  edges: Edge[];
   nodes: Node[];
 }
 
-// Matches the backend PathResult record type
 export interface PathResult {
   nodeIds: string[];
   moveCount: number;
@@ -32,20 +31,31 @@ export interface PathResult {
   isValid: boolean;
 }
 
+// 🎮 Explicit interface for the real session initialization endpoint
+export interface GameSession {
+  startNode: Node;
+  targetNode: Node;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class GameService {
   private readonly http = inject(HttpClient);
-  
-  // Double-check your actual running .NET Kestrel port!
   private readonly apiUrl = 'http://localhost:5017/v1'; 
 
- getTestNodes(): Observable<Node[]> {
-    return this.http.get<Node[]>(`${this.apiUrl}/test/nodes`);
+  // 🔍 FIXED: Added the missing search handler to resolve the 404 error
+  searchArtists(query: string): Observable<Node[]> {
+    return this.http.get<Node[]>(`${this.apiUrl}/node/search`, {
+      params: { q: query }
+    });
   }
 
-  // ✅ Updated to expect the complex object matching your backend controller
+  // 🌟 Added to fetch structurally valid games without affecting artist search
+  startGameSession(): Observable<GameSession> {
+    return this.http.get<GameSession>(`${this.apiUrl}/game/start`);
+  }
+
   expandNode(nodeId: string): Observable<ExpandNodeResponse> {
     return this.http.get<ExpandNodeResponse>(`${this.apiUrl}/node/expand/${nodeId}`);
   }
@@ -57,10 +67,13 @@ export class GameService {
     });
   }
 
-  // ✅ Added to hit your backend validation endpoint when the game wraps up
   validatePath(submittedPath: string[]): Observable<PathResult> {
     return this.http.post<PathResult>(`${this.apiUrl}/path/validate`, {
       submittedPath: submittedPath
     });
+  }
+
+  getTestNodes(): Observable<Node[]> {
+    return this.http.get<Node[]>(`${this.apiUrl}/test/nodes`);
   }
 }

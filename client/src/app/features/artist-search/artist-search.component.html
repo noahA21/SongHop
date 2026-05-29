@@ -28,21 +28,30 @@
   }
 
   <div class="results-container" aria-live="polite">
+    
+    @if (isSearching()) {
+      <div class="loading-spinner">Searching graph network...</div>
+    }
+
+    @if (errorMessage()) {
+      <div class="error-alert" role="alert">{{ errorMessage() }}</div>
+    }
+
     @if (searchResults().length > 0) {
-      <ul class="results-list">
+      <ul class="search-results-list">
         @for (artist of searchResults(); track artist.id) {
-          <li>
-            <div class="result-item">
-              <span class="name">{{ artist.name }}</span>
-              <span class="meta">Popularity Score: {{ artist.popularityScore }}</span>
-            </div>
+          <li class="search-result-item">
+            <span class="artist-name">{{ artist.name }}</span>
+            <span class="artist-pop-badge">Popularity: {{ artist.popularityScore }}</span>
           </li>
         }
       </ul>
-    } @else {
-      @if (!isSearching() && searchForm.get('artistName')?.value) {
-        <p class="no-results">No artists found matching that query.</p>
-      }
+    } 
+    
+    @else if (!isSearching() && !errorMessage() && searchForm.controls.artistName.value.trim().length >= 2) {
+      <div class="no-results">
+        No artists found matching "{{ searchForm.controls.artistName.value }}".
+      </div>
     }
   </div>
 </section>
