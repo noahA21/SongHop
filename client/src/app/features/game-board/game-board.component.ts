@@ -1,115 +1,151 @@
 // client/src/app/features/game-board/game-board.component.ts
-import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { GameService, Node } from '../../core/services/game.service';
 
 @Component({
   selector: 'app-game-board',
+  standalone: true,
+  imports: [CommonModule],
   templateUrl: './game-board.component.html',
-  styleUrl: './game-board.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './game-board.scss'
 })
 export class GameBoardComponent implements OnInit {
   private readonly gameService = inject(GameService);
 
-  // --- Core Game State (Signals) ---
+  // --- Core State Machine (Signals) ---
   readonly startNode = signal<Node | null>(null);
   readonly targetNode = signal<Node | null>(null);
   readonly currentNode = signal<Node | null>(null);
   readonly neighbors = signal<Node[]>([]);
-  readonly pathHistory = signal<Node[]>([]); 
-  
+  readonly pathHistory = signal<Node[]>([]); // Keeps track of the traversal trail
+  readonly optimalHops = signal<number | null>(null);
+
   readonly isLoading = signal<boolean>(false);
+  readonly isValidatingWin = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly hasWon = signal<boolean>(false);
-  readonly isPathVerified = signal<boolean>(false); 
+  readonly isPathVerified = signal<boolean>(false);
 
-  // --- Derived State (Computed Signals) ---
-  readonly moveCount = computed(() => this.pathHistory().length);
+  // --- Computed Stats ---
+  readonly currentMoveCount = computed(() => this.pathHistory().length);
   
-  readonly gameStatusMessage = computed(() => {
-    if (this.hasWon()) {
-      return this.isPathVerified() 
-        ? `Victory verified! You reached the target in ${this.moveCount()} hops!`
-        : 'Reaching target... Verifying route integrity with server...';
-    }
-    if (this.isLoading()) return 'Loading adjacent nodes...';
-    return `Currently at ${this.currentNode()?.name ?? 'Unknown Artist'}`;
+  // Creates a quick lookup set of IDs currently in the trail to block infinite back-and-forth loops
+  readonly visitedNodeIds = computed(() => {
+    return new Set<string>(this.pathHistory().map(n => n.id));
   });
 
   ngOnInit(): void {
     this.startNewGame();
   }
 
-  // 🔄 FIXED FLOW: Connects directly to the real data initialization pipeline
   startNewGame(): void {
     this.isLoading.set(true);
+    this.isValidatingWin.set(false);
     this.errorMessage.set(null);
     this.hasWon.set(false);
     this.isPathVerified.set(false);
     this.pathHistory.set([]);
+    this.optimalHops.set(null);
 
-    // 🔄 FIXED: Switch from sequential test nodes to a structured session pair
     this.gameService.startGameSession().subscribe({
       next: (session) => {
         this.startNode.set(session.startNode);
         this.targetNode.set(session.targetNode);
         this.currentNode.set(session.startNode);
+        this.optimalHops.set(session.optimalHops);
         
-        // Populate valid branching relationships from the start node
+        // Seed the initial board view with the first artist's neighbors
         this.loadNeighbors(session.startNode.id);
       },
       error: () => {
-        this.errorMessage.set('Failed to initialize a secure game session with the server.');
+        this.errorMessage.set('Could not initialize a winnable game session. Ensure the backend server is running.');
         this.isLoading.set(false);
       }
     });
   }
 
-  makeHop(selectedNode: Node): void {
-    if (this.isLoading() || this.hasWon()) return;
+  loadNeighbors(nodeId: string): void {
+    this.isLoading.set(true);
+    this.gameService.expandNode(nodeId).subscribe({
+      next: (res) => {
+        this.neighbors.set(res.nodes);
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Failed to retrieve connected artists from graph network.');
+        this.isLoading.set(false);
+      }
+    });
+  }
 
-    this.pathHistory.update((history) => [...history, selectedNode]);
-    this.currentNode.set(selectedNode);
+  makeHop(node: Node): void {
+    // Edge Case Guard: Block choice if already visited in this trail
+    if (this.visitedNodeIds().has(node.id)) return;
 
-    if (selectedNode.id === this.targetNode()?.id) {
-      this.hasWon.set(true);
-      this.validatePathOnServer(); 
+    // Push current position to history trail before moving forward
+    const current = this.currentNode();
+    if (current) {
+      this.pathHistory.update(history => [...history, current]);
+    }
+
+    this.currentNode.set(node);
+
+    // 🏆 WIN CONDITION INTERCEPTOR
+    if (node.id === this.targetNode()?.id) {
+      this.handleWinCondition();
       return;
     }
 
-    this.loadNeighbors(selectedNode.id);
+    // Continue normal path expansion
+    this.loadNeighbors(node.id);
   }
 
-  private loadNeighbors(nodeId: string): void {
-    this.isLoading.set(true);
-    this.gameService.expandNode(nodeId).subscribe({
-      next: (data) => {
-        this.neighbors.set(data.nodes || []);
-        this.isLoading.set(false);
-      },
-      error: () => {
-        this.errorMessage.set('Error fetching adjacent paths.');
-        this.isLoading.set(false);
-      }
-    });
+  /**
+   * Edge Case 1 Solution: Safely steps backward if the user is trapped or makes a mistake
+   */
+  backtrack(): void {
+    const history = this.pathHistory();
+    if (history.length === 0) return; // Nowhere to go back to
+
+    // Extract the previous node
+    const previousNode = history[history.length - 1];
+    
+    // Drop the last item from the state signal array
+    this.pathHistory.update(h => h.slice(0, -1));
+    this.currentNode.set(previousNode);
+
+    // Reload the previous neighborhood view
+    this.loadNeighbors(previousNode.id);
   }
 
-  private validatePathOnServer(): void {
-    const start = this.startNode();
-    if (!start) return;
+  private handleWinCondition(): void {
+    this.isValidatingWin.set(true);
+    this.neighbors.set([]); // Clear active board to freeze interactions
 
-    const completeSubmittedPath = [start.id, ...this.pathHistory().map(n => n.id)];
+    // Compile entire path sequence: Start -> History Track -> Destination
+    const fullPathIds = [
+      this.startNode()!.id,
+      ...this.pathHistory().map(n => n.id),
+      this.currentNode()!.id
+    ];
 
-    this.gameService.validatePath(completeSubmittedPath).subscribe({
+    // Filter out duplicates if the start node got caught in transitions
+    const distinctPathIds = Array.from(new Set(fullPathIds));
+
+    this.gameService.validatePath(distinctPathIds).subscribe({
       next: (result) => {
+        this.isValidatingWin.set(false);
         if (result.isValid) {
+          this.hasWon.set(true);
           this.isPathVerified.set(true);
         } else {
-          this.errorMessage.set('Server rejected path validation: Illegal movement step caught.');
+          this.errorMessage.set(result.message || 'Path authentication failed. Local trace graph inconsistent.');
         }
       },
       error: () => {
-        this.errorMessage.set('Target hit, but failed to connect to path validation server.');
+        this.isValidatingWin.set(false);
+        this.errorMessage.set('Server validation timed out or failed to parse.');
       }
     });
   }

@@ -1,60 +1,112 @@
-<div class="songhop-workspace" style="max-width: 600px; margin: 40px auto; font-family: system-ui, sans-serif;">
-  <header style="border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">
-    <h1 style="margin: 0; color: #1db954;">🎵 SongHop</h1>
-    <p style="margin: 5px 0 0; color: #666;">Full-Stack Connection Test Engine</p>
+<div class="game-container">
+  
+  <header class="game-header">
+    <h2>SongHop Board</h2>
+    <button class="reset-button" (click)="startNewGame()" [disabled]="isLoading() || isValidatingWin()">
+      New Game Pair
+    </button>
   </header>
 
-  <div class="scorecard" style="background: #f4f4f5; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-    <div style="margin-bottom: 8px;">
-      Target Node: <strong style="color: #dc2626;">{{ targetNode()?.name ?? 'Loading...' }}</strong> 
-      <small style="color: #71717a; display: block;">ID: {{ targetNode()?.id }}</small>
-    </div>
-    <div style="margin-top: 12px; border-top: 1px solid #e4e4e7; padding-top: 8px;">
-      Current Position: <strong style="color: #2563eb;">{{ currentNode()?.name ?? 'Loading...' }}</strong>
-    </div>
-    <div style="margin-top: 10px; font-weight: bold;">Hops Taken: {{ moveCount() }}</div>
-  </div>
-
   @if (errorMessage()) {
-    <div style="padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 500; text-align: center; background: #fee2e2; color: #991b1b;">
+    <div class="error-banner" role="alert">
       {{ errorMessage() }}
     </div>
   }
 
-  @if (gameStatusMessage() && !errorMessage()) {
-    <div style="padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 500; text-align: center; background: #e0f2fe; color: #0369a1;">
-      {{ gameStatusMessage() }}
-    </div>
-  }
-
   @if (!hasWon()) {
-    <h3 style="margin-bottom: 12px;">Choose Next Traversal Link:</h3>
-    <div class="grid" style="display: grid; gap: 10px; grid-template-columns: 1fr 1fr;">
-      
-      @for (artist of neighbors(); track artist.id) {
-        <button 
-          [disabled]="isLoading()"
-          (click)="makeHop(artist)"
-          style="padding: 14px; background: #fff; border: 1px solid #e4e4e7; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-align: left;"
-          onmouseover="this.style.background='#f4f4f5'"
-          onmouseout="this.style.background='#fff'">
-          👩‍🎤 {{ artist.name }}
-        </button>
-      } @empty {
-        @if (!isLoading()) {
-          <div style="color: #71717a; font-style: italic; margin-top: 10px;">
-            This artist is a dead end! No connections found in database.
-          </div>
-        }
+    
+    <div class="mission-control-panel">
+      <div class="target-card start">
+        <span class="label">Starting From</span>
+        <h3>{{ startNode()?.name }}</h3>
+      </div>
+      <div class="connector-arrow">➔</div>
+      <div class="target-card destination">
+        <span class="label">Target Objective</span>
+        <h3>{{ targetNode()?.name }}</h3>
+      </div>
+    </div>
+
+    <div class="game-metrics">
+      <p>Current Hops: <strong class="highlight">{{ currentMoveCount() }}</strong></p>
+      @if (optimalHops()) {
+        <p>Server Par Goal: <strong>{{ optimalHops() }} hops</strong></p>
       }
     </div>
-  }
 
-  @if (hasWon()) {
-    <div style="margin-top: 20px; text-align: center;">
-      <button (click)="$event.stopPropagation(); startNewGame()" style="padding: 12px 24px; background: #1db954; color: white; border: none; border-radius: 20px; font-weight: bold; cursor: pointer;">
-        🔄 Play Another Round
-      </button>
-    </div>
+    @if (pathHistory().length > 0) {
+      <div class="breadcrumbs-panel">
+        <h4>Your Tracked Path:</h4>
+        <div class="trail-links">
+          @for (node of pathHistory(); track node.id) {
+            <span class="trail-node">{{ node.name }}</span>
+            <span class="trail-arrow">➔</span>
+          }
+          <span class="trail-node active">{{ currentNode()?.name }}</span>
+        </div>
+        
+        <button class="backtrack-button" (click)="backtrack()" [disabled]="isLoading()">
+          ↩ Undo Last Hop
+        </button>
+      </div>
+    }
+
+    <hr class="section-divider" />
+
+    <main class="navigation-hub">
+      <h3>Connections out of: <span class="current-focus">{{ currentNode()?.name }}</span></h3>
+
+      @if (isLoading()) {
+        <div class="loading-spinner">Mapping collaborative links...</div>
+      } @else if (neighbors().length === 0 && !isValidatingWin()) {
+        <div class="dead-end-alert">
+          <p>⚠️ This artist is a dead end! No connections found in database.</p>
+          <button class="backtrack-button-inline" (click)="backtrack()">Go Back a Step</button>
+        </div>
+      } @else {
+        <div class="connections-grid">
+          @for (artist of neighbors(); track artist.id) {
+            <button 
+              class="artist-hop-button"
+              [disabled]="visitedNodeIds().has(artist.id) || isValidatingWin()"
+              [class.visited]="visitedNodeIds().has(artist.id)"
+              (click)="makeHop(artist)">
+              {{ artist.name }}
+            </button>
+          }
+        </div>
+      }
+    </main>
+
+  } @else {
+    
+    <section class="victory-screen" aria-live="polite">
+      <div class="victory-card">
+        <div class="trophy-icon">🏆</div>
+        <h2>Target Objective Reached!</h2>
+        <p class="congrats-text">You successfully connected the musical network graph!</p>
+        
+        <div class="score-summary">
+          <div class="stat-box">
+            <span class="stat-label">Your Path Length</span>
+            <span class="stat-value">{{ currentMoveCount() }} Hops</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Optimal Par Goal</span>
+            <span class="stat-value">{{ optimalHops() }} Hops</span>
+          </div>
+        </div>
+
+        @if (currentMoveCount() <= (optimalHops() || 0)) {
+          <p class="performance-badge gold">🏅 Equal to or Better than Server Par! Exceptional Navigation.</p>
+        } @else {
+          <p class="performance-badge silver">🥈 Connected! Can you trace a shorter path next time?</p>
+        }
+
+        <button class="play-again-button" (click)="startNewGame()">
+          Play Fresh Session
+        </button>
+      </div>
+    </section>
   }
 </div>
