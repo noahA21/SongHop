@@ -51,5 +51,6 @@ app.UseCors("AllowAngularDev");
 
 // 🌟 Clear Routing Execution Module Mapping
 app.MapGameEndpoints();
+app.MapNodeEndpoints();
 
 app.Run();

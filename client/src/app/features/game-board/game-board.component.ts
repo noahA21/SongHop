@@ -3,6 +3,14 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameService, Node } from '../../core/services/game.service';
 
+export interface HistoricalRun {
+  startNodeName: string;
+  targetNodeName: string;
+  moves: number;
+  status: 'Completed' | 'Surrendered';
+  timestamp: string;
+}
+
 @Component({
   selector: 'app-game-board',
   standalone: true,
@@ -13,13 +21,19 @@ import { GameService, Node } from '../../core/services/game.service';
 export class GameBoardComponent implements OnInit {
   private readonly gameService = inject(GameService);
 
-  // --- Core State Machine (Signals) ---
+  readonly gameState = signal<'welcome' | 'playing' | 'victory'>('welcome');
+  readonly recentRuns = signal<HistoricalRun[]>([]);
+
   readonly startNode = signal<Node | null>(null);
   readonly targetNode = signal<Node | null>(null);
   readonly currentNode = signal<Node | null>(null);
   readonly neighbors = signal<Node[]>([]);
-  readonly pathHistory = signal<Node[]>([]); // Keeps track of the traversal trail
+  readonly pathHistory = signal<Node[]>([]);
   readonly optimalHops = signal<number | null>(null);
+  readonly currentDistance = signal<number | null>(null);
+  
+  // Real-time delta tracker for radar graphics
+  readonly temperature = signal<'HOT' | 'WARM' | 'COLD' | 'NEUTRAL'>('NEUTRAL');
 
   readonly isLoading = signal<boolean>(false);
   readonly isValidatingWin = signal<boolean>(false);
@@ -27,16 +41,11 @@ export class GameBoardComponent implements OnInit {
   readonly hasWon = signal<boolean>(false);
   readonly isPathVerified = signal<boolean>(false);
 
-  // --- Computed Stats ---
   readonly currentMoveCount = computed(() => this.pathHistory().length);
-  
-  // Creates a quick lookup set of IDs currently in the trail to block infinite back-and-forth loops
-  readonly visitedNodeIds = computed(() => {
-    return new Set<string>(this.pathHistory().map(n => n.id));
-  });
+  readonly visitedNodeIds = computed(() => new Set<string>(this.pathHistory().map(n => n.id)));
 
   ngOnInit(): void {
-    this.startNewGame();
+    this.loadRunsFromStorage();
   }
 
   startNewGame(): void {
@@ -47,6 +56,9 @@ export class GameBoardComponent implements OnInit {
     this.isPathVerified.set(false);
     this.pathHistory.set([]);
     this.optimalHops.set(null);
+    this.currentDistance.set(null);
+    this.temperature.set('NEUTRAL');
+    this.gameState.set('playing');
 
     this.gameService.startGameSession().subscribe({
       next: (session) => {
@@ -54,22 +66,45 @@ export class GameBoardComponent implements OnInit {
         this.targetNode.set(session.targetNode);
         this.currentNode.set(session.startNode);
         this.optimalHops.set(session.optimalHops);
-        
-        // Seed the initial board view with the first artist's neighbors
+        this.currentDistance.set(session.optimalHops);
         this.loadNeighbors(session.startNode.id);
       },
       error: () => {
-        this.errorMessage.set('Could not initialize a winnable game session. Ensure the backend server is running.');
+        this.errorMessage.set('Could not initialize a winnable session. Verify server database status.');
         this.isLoading.set(false);
+        this.gameState.set('welcome');
       }
     });
   }
 
   loadNeighbors(nodeId: string): void {
     this.isLoading.set(true);
-    this.gameService.expandNode(nodeId).subscribe({
+    const target = this.targetNode();
+    
+    this.gameService.expandNode(nodeId, target?.id ?? undefined).subscribe({
       next: (res) => {
-        this.neighbors.set(res.nodes);
+        // DEFENSIVE SLICING: Force cap array at exactly 5 options
+        this.neighbors.set(res.nodes.slice(0, 5));
+
+        // DETECT TEMPERATURE SHIFTS DYNAMICALLY
+        const previousDist = this.currentDistance();
+        const incomingDist = res.currentDistance;
+
+        if (previousDist !== null && incomingDist !== null) {
+          if (incomingDist < previousDist) {
+            this.temperature.set('HOT');
+          } else if (incomingDist > previousDist) {
+            this.temperature.set('COLD');
+          } else {
+            this.temperature.set('WARM');
+          }
+        } else {
+          this.temperature.set('NEUTRAL');
+        }
+
+        if (incomingDist !== null && incomingDist !== undefined) {
+          this.currentDistance.set(incomingDist);
+        }
         this.isLoading.set(false);
       },
       error: () => {
@@ -80,10 +115,8 @@ export class GameBoardComponent implements OnInit {
   }
 
   makeHop(node: Node): void {
-    // Edge Case Guard: Block choice if already visited in this trail
     if (this.visitedNodeIds().has(node.id)) return;
 
-    // Push current position to history trail before moving forward
     const current = this.currentNode();
     if (current) {
       this.pathHistory.update(history => [...history, current]);
@@ -91,46 +124,56 @@ export class GameBoardComponent implements OnInit {
 
     this.currentNode.set(node);
 
-    // 🏆 WIN CONDITION INTERCEPTOR
     if (node.id === this.targetNode()?.id) {
       this.handleWinCondition();
       return;
     }
 
-    // Continue normal path expansion
     this.loadNeighbors(node.id);
   }
 
-  /**
-   * Edge Case 1 Solution: Safely steps backward if the user is trapped or makes a mistake
-   */
   backtrack(): void {
     const history = this.pathHistory();
-    if (history.length === 0) return; // Nowhere to go back to
+    if (history.length === 0) return;
 
-    // Extract the previous node
     const previousNode = history[history.length - 1];
-    
-    // Drop the last item from the state signal array
     this.pathHistory.update(h => h.slice(0, -1));
     this.currentNode.set(previousNode);
-
-    // Reload the previous neighborhood view
+    
+    // Reset temperature on backtracking to prevent false reading clues
+    this.temperature.set('NEUTRAL');
     this.loadNeighbors(previousNode.id);
+  }
+
+  abandonMission(): void {
+    const start = this.startNode();
+    const target = this.targetNode();
+    
+    if (start && target) {
+      const runLog: HistoricalRun = {
+        startNodeName: start.name,
+        targetNodeName: target.name,
+        moves: this.currentMoveCount(),
+        status: 'Surrendered',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      this.recentRuns.update(runs => [runLog, ...runs]);
+      this.saveRunsToStorage();
+    }
+    
+    this.gameState.set('welcome');
   }
 
   private handleWinCondition(): void {
     this.isValidatingWin.set(true);
-    this.neighbors.set([]); // Clear active board to freeze interactions
+    this.neighbors.set([]);
 
-    // Compile entire path sequence: Start -> History Track -> Destination
     const fullPathIds = [
       this.startNode()!.id,
       ...this.pathHistory().map(n => n.id),
       this.currentNode()!.id
     ];
 
-    // Filter out duplicates if the start node got caught in transitions
     const distinctPathIds = Array.from(new Set(fullPathIds));
 
     this.gameService.validatePath(distinctPathIds).subscribe({
@@ -139,14 +182,42 @@ export class GameBoardComponent implements OnInit {
         if (result.isValid) {
           this.hasWon.set(true);
           this.isPathVerified.set(true);
+          this.gameState.set('victory');
+
+          const start = this.startNode();
+          const target = this.targetNode();
+          if (start && target) {
+            const runLog: HistoricalRun = {
+              startNodeName: start.name,
+              targetNodeName: target.name,
+              moves: result.moveCount,
+              status: 'Completed',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            this.recentRuns.update(runs => [runLog, ...runs]);
+            this.saveRunsToStorage();
+          }
         } else {
-          this.errorMessage.set(result.message || 'Path authentication failed. Local trace graph inconsistent.');
+          this.errorMessage.set(result.message || 'Path validation failed.');
+          this.gameState.set('playing');
         }
       },
       error: () => {
         this.isValidatingWin.set(false);
-        this.errorMessage.set('Server validation timed out or failed to parse.');
+        this.errorMessage.set('Server path validation engine failure.');
+        this.gameState.set('playing');
       }
     });
+  }
+
+  private loadRunsFromStorage(): void {
+    const data = localStorage.getItem('songhop_traversal_logs');
+    if (data) {
+      try { this.recentRuns.set(JSON.parse(data)); } catch { this.recentRuns.set([]); }
+    }
+  }
+
+  private saveRunsToStorage(): void {
+    localStorage.setItem('songhop_traversal_logs', JSON.stringify(this.recentRuns()));
   }
 }

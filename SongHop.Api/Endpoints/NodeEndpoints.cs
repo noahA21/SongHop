@@ -24,22 +24,22 @@ public static class NodeEndpoints
         
 
         // 🌟 NEW: Full-text Database Query Search Engine
-        group.MapGet("/search", async (string q, SongHopDbContext db) =>
-        {
-            if (string.IsNullOrWhiteSpace(q))
-            {
-                return Results.Ok(Array.Empty<Node>());
-            }
+        // group.MapGet("/search", async (string q, SongHopDbContext db) =>
+        // {
+        //     if (string.IsNullOrWhiteSpace(q))
+        //     {
+        //         return Results.Ok(Array.Empty<Node>());
+        //     }
 
-            // Case-insensitive wildcard match using Postgres ILIKE, sorted by popularity
-            var matchingArtists = await db.Nodes
-                .Where(n => EF.Functions.ILike(n.Name, $"%{q}%"))
-                .OrderByDescending(n => n.PopularityScore)
-                .Take(10) // Limit output for high network performance
-                .ToListAsync();
+        //     // Case-insensitive wildcard match using Postgres ILIKE, sorted by popularity
+        //     var matchingArtists = await db.Nodes
+        //         .Where(n => EF.Functions.ILike(n.Name, $"%{q}%"))
+        //         .OrderByDescending(n => n.PopularityScore)
+        //         .Take(10) // Limit output for high network performance
+        //         .ToListAsync();
 
-            return Results.Ok(matchingArtists);
-        });
+        //     return Results.Ok(matchingArtists);
+        // });
     }
     
 }

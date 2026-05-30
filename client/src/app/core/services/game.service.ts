@@ -1,6 +1,6 @@
 // client/src/app/core/services/game.service.ts
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface Node {
@@ -8,11 +8,12 @@ export interface Node {
   name: string;
   type: string;
   popularityScore: number;
+  connectionReason?: string; // Captures relationship "Liner Notes" text strings
 }
 
 export interface ExpandNodeResponse {
-  edges: any[];
   nodes: Node[];
+  currentDistance: number | null;
 }
 
 export interface GameSession {
@@ -34,24 +35,24 @@ export class GameService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = 'http://localhost:5017/v1'; 
 
-  // Direct backend interface for artist search feature
   searchArtists(query: string): Observable<Node[]> {
     return this.http.get<Node[]>(`${this.apiUrl}/node/search`, {
       params: { q: query }
     });
   }
 
-  // Requests a mathematically verified short-hop session configuration
   startGameSession(): Observable<GameSession> {
     return this.http.get<GameSession>(`${this.apiUrl}/game/start`);
   }
 
-  // Radiates out neighbors bidirectionally
-  expandNode(nodeId: string): Observable<ExpandNodeResponse> {
-    return this.http.get<ExpandNodeResponse>(`${this.apiUrl}/node/expand/${nodeId}`);
+  expandNode(nodeId: string, targetId?: string): Observable<ExpandNodeResponse> {
+    let params = new HttpParams();
+    if (targetId) {
+      params = params.set('targetId', targetId);
+    }
+    return this.http.get<ExpandNodeResponse>(`${this.apiUrl}/node/expand/${nodeId}`, { params });
   }
 
-  // Submits complete historical trail for absolute database check confirmation
   validatePath(submittedPath: string[]): Observable<PathValidationResult> {
     return this.http.post<PathValidationResult>(`${this.apiUrl}/path/validate`, {
       submittedPath: submittedPath

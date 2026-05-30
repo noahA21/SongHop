@@ -5,10 +5,10 @@ export interface Node {
   name: string;
   type: string;
   popularityScore: number;
-  imageUrl?: string;   // Matches backend record structural layout
-  externalId?: string; //  Holds the MusicBrainz ID UUID link
+  imageUrl?: string;   
+  externalId?: string; 
   
-  // 🌟 NEW METADATA FIELDS FROM MUSICBRAINZ ENRICHMENT PHASE
+  // MusicBrainz Metadata Fields
   country?: string;
   artistType?: string;
   startYear?: number;
@@ -25,8 +25,8 @@ export interface Edge {
 }
 
 export interface ExpandNodeResponse {
-  edges: Edge[]; // Typed explicitly instead of 'any[]' for stricter compiler safety
   nodes: Node[];
+  currentDistance: number | null; // Keeps frontend compile error loops safely closed
 }
 
 export interface PathResult {

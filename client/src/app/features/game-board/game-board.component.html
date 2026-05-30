@@ -1,111 +1,180 @@
 <div class="game-container">
   
-  <header class="game-header">
-    <h2>SongHop Board</h2>
-    <button class="reset-button" (click)="startNewGame()" [disabled]="isLoading() || isValidatingWin()">
-      New Game Pair
-    </button>
-  </header>
-
   @if (errorMessage()) {
     <div class="error-banner" role="alert">
-      {{ errorMessage() }}
+      <span>⚠️ {{ errorMessage() }}</span>
+      <button class="close-btn" (click)="errorMessage.set(null)">✕</button>
     </div>
   }
 
-  @if (!hasWon()) {
-    
-    <div class="mission-control-panel">
-      <div class="target-card start">
-        <span class="label">Starting From</span>
-        <h3>{{ startNode()?.name }}</h3>
+  @if (gameState() === 'welcome') {
+    <section class="welcome-screen">
+      <div class="hero-header">
+        <h1>🎵 SongHop Game Engine</h1>
+        <p>Traverse across collaboration networks and related artists to pinpoint your target destination in the fewest hops possible.</p>
+        <button class="action-btn launch-btn" (click)="startNewGame()">Start New Journey</button>
       </div>
-      <div class="connector-arrow">➔</div>
-      <div class="target-card destination">
-        <span class="label">Target Objective</span>
-        <h3>{{ targetNode()?.name }}</h3>
-      </div>
-    </div>
 
-    <div class="game-metrics">
-      <p>Current Hops: <strong class="highlight">{{ currentMoveCount() }}</strong></p>
-      @if (optimalHops()) {
-        <p>Server Par Goal: <strong>{{ optimalHops() }} hops</strong></p>
-      }
-    </div>
-
-    @if (pathHistory().length > 0) {
-      <div class="breadcrumbs-panel">
-        <h4>Your Tracked Path:</h4>
-        <div class="trail-links">
-          @for (node of pathHistory(); track node.id) {
-            <span class="trail-node">{{ node.name }}</span>
-            <span class="trail-arrow">➔</span>
-          }
-          <span class="trail-node active">{{ currentNode()?.name }}</span>
-        </div>
-        
-        <button class="backtrack-button" (click)="backtrack()" [disabled]="isLoading()">
-          ↩ Undo Last Hop
-        </button>
-      </div>
-    }
-
-    <hr class="section-divider" />
-
-    <main class="navigation-hub">
-      <h3>Connections out of: <span class="current-focus">{{ currentNode()?.name }}</span></h3>
-
-      @if (isLoading()) {
-        <div class="loading-spinner">Mapping collaborative links...</div>
-      } @else if (neighbors().length === 0 && !isValidatingWin()) {
-        <div class="dead-end-alert">
-          <p>⚠️ This artist is a dead end! No connections found in database.</p>
-          <button class="backtrack-button-inline" (click)="backtrack()">Go Back a Step</button>
-        </div>
-      } @else {
-        <div class="connections-grid">
-          @for (artist of neighbors(); track artist.id) {
-            <button 
-              class="artist-hop-button"
-              [disabled]="visitedNodeIds().has(artist.id) || isValidatingWin()"
-              [class.visited]="visitedNodeIds().has(artist.id)"
-              (click)="makeHop(artist)">
-              {{ artist.name }}
-            </button>
-          }
-        </div>
-      }
-    </main>
-
-  } @else {
-    
-    <section class="victory-screen" aria-live="polite">
-      <div class="victory-card">
-        <div class="trophy-icon">🏆</div>
-        <h2>Target Objective Reached!</h2>
-        <p class="congrats-text">You successfully connected the musical network graph!</p>
-        
-        <div class="score-summary">
-          <div class="stat-box">
-            <span class="stat-label">Your Path Length</span>
-            <span class="stat-value">{{ currentMoveCount() }} Hops</span>
+      <div class="logs-section">
+        <h2>📊 Your Recent Traversal Logs</h2>
+        @if (recentRuns().length === 0) {
+          <div class="empty-logs-card">
+            <p>No connections traced yet. Spin up a new session to calibrate your traversal metrics.</p>
           </div>
-          <div class="stat-box">
-            <span class="stat-label">Optimal Par Goal</span>
-            <span class="stat-value">{{ optimalHops() }} Hops</span>
-          </div>
-        </div>
-
-        @if (currentMoveCount() <= (optimalHops() || 0)) {
-          <p class="performance-badge gold">🏅 Equal to or Better than Server Par! Exceptional Navigation.</p>
         } @else {
-          <p class="performance-badge silver">🥈 Connected! Can you trace a shorter path next time?</p>
+          <div class="logs-table-wrapper">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Origin Node</th>
+                  <th>Target Node</th>
+                  <th>Moves</th>
+                  <th>Outcome Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (run of recentRuns(); track run.timestamp) {
+                  <tr>
+                    <td>{{ run.timestamp }}</td>
+                    <td class="node-text">{{ run.startNodeName }}</td>
+                    <td class="node-text">{{ run.targetNodeName }}</td>
+                    <td class="stats-count">{{ run.moves }} hops</td>
+                    <td>
+                      <span class="badge" [ngClass]="run.status === 'Completed' ? 'badge-win' : 'badge-lose'">
+                        {{ run.status }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
+      </div>
+    </section>
+  }
 
-        <button class="play-again-button" (click)="startNewGame()">
-          Play Fresh Session
-        </button>
+  @if (gameState() === 'playing') {
+    <section class="gameplay-board">
+      
+      <header class="gameplay-header">
+        <div class="mission-objectives">
+          <div class="objective-card start">
+            <small>Starting Position</small>
+            <strong>{{ startNode()?.name }}</strong>
+          </div>
+          <div class="objective-divider">➔</div>
+          <div class="objective-card target">
+            <small>Target Destination</small>
+            <strong>{{ targetNode()?.name }}</strong>
+          </div>
+        </div>
+
+        <div class="session-actions">
+          <button class="action-btn surrender-btn" (click)="abandonMission()">🏳️ Abandon Mission</button>
+        </div>
+      </header>
+
+      <div class="proximity-radar-panel" [ngClass]="'temp-' + temperature().toLowerCase()">
+        <div class="radar-status">
+          <span class="radar-icon">
+            @if (temperature() === 'HOT') { 🔥 }
+            @else if (temperature() === 'COLD') { ❄️ }
+            @else { 📡 }
+          </span>
+          <p>
+            @if (currentDistance() !== null) {
+              Hint: An optimal path exists from this selection and is exactly <strong>{{ currentDistance() }} hops</strong> from the target! 
+              <span class="temp-text-indicator">({{ temperature() }} TRACKING ALERT)</span>
+            } @else {
+              Recalculating proximity matrix options across active graph database edges...
+            }
+          </p>
+        </div>
+        <div class="move-counter-badge">
+          Current Move Count: <strong>{{ currentMoveCount() }}</strong>
+        </div>
+      </div>
+
+      <div class="active-center-anchor">
+        <span class="anchor-label">CURRENT COORDINATE POSITION</span>
+        <div class="center-card">
+          <h3>{{ currentNode()?.name }}</h3>
+          <span class="pop-rating">Graph Popularity Rank: {{ currentNode()?.popularityScore }}/100</span>
+        </div>
+      </div>
+
+      @if (pathHistory().length > 0) {
+        <div class="breadcrumb-trail">
+          <button class="action-btn backtrack-btn" (click)="backtrack()">↩️ Backtrack Step</button>
+          <div class="trail-nodes">
+            @for (pastNode of pathHistory(); track pastNode.id; let last = $last) {
+              <span class="trail-chip">{{ pastNode.name }}</span>
+              @if (!last) { <span class="trail-arrow">➔</span> }
+            }
+          </div>
+        </div>
+      }
+
+      <div class="neighborhood-selection-zone">
+        <h4>Select Next Expansion Pathway (Cap: 5 Options Max):</h4>
+        
+        @if (isLoading()) {
+          <div class="grid-loading-shimmer">
+            <p>Querying real-time network intersections...</p>
+          </div>
+        } @else {
+          <div class="curated-options-grid">
+            @for (artist of neighbors(); track artist.id) {
+              <button 
+                class="choice-grid-btn"
+                [disabled]="visitedNodeIds().has(artist.id)"
+                [ngClass]="{'disabled-visited': visitedNodeIds().has(artist.id)}"
+                (click)="makeHop(artist)">
+                <div class="btn-primary-info">
+                  <span class="artist-choice-name">{{ artist.name }}</span>
+                  <span class="artist-choice-pop">Score: {{ artist.popularityScore }}</span>
+                </div>
+                <div class="btn-liner-notes">
+                  <small>{{ artist.connectionReason || 'Database relation node.' }}</small>
+                </div>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (gameState() === 'victory') {
+    <section class="victory-screen">
+      <div class="victory-card">
+        <div class="trophy-animation">🏆</div>
+        <h1>Path Authenticated!</h1>
+        <p>You successfully linked <strong>{{ startNode()?.name }}</strong> to <strong>{{ targetNode()?.name }}</strong> in <strong>{{ currentMoveCount() + 1 }} total hops</strong>.</p>
+        
+        <div class="verified-summary">
+          <h3>Validated Path Trace Matrix:</h3>
+          <div class="summary-line">
+            <span class="step-badge origin">Start</span>
+            <strong>{{ startNode()?.name }}</strong>
+          </div>
+          @for (historyNode of pathHistory(); track historyNode.id) {
+            <div class="summary-divider">↓</div>
+            <div class="summary-line">
+              <span class="step-badge intermediate">Hop</span>
+              <span>{{ historyNode.name }}</span>
+            </div>
+          }
+          <div class="summary-divider">↓</div>
+          <div class="summary-line">
+            <span class="step-badge climax">Target</span>
+            <strong>{{ targetNode()?.name }}</strong>
+          </div>
+        </div>
+
+        <button class="action-btn return-btn" (click)="gameState.set('welcome')">Return to Command Center</button>
       </div>
     </section>
   }
