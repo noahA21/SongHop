@@ -57,92 +57,156 @@
 
   @if (gameState() === 'playing') {
     <section class="gameplay-board">
-      
-      <header class="gameplay-header">
-        <div class="mission-objectives">
-          <div class="objective-card start">
-            <small>Starting Position</small>
-            <strong>{{ startNode()?.name }}</strong>
-          </div>
-          <div class="objective-divider">➔</div>
-          <div class="objective-card target">
-            <small>Target Destination</small>
-            <strong>{{ targetNode()?.name }}</strong>
-          </div>
-        </div>
-
-        <div class="session-actions">
-          <button class="action-btn surrender-btn" (click)="abandonMission()">🏳️ Abandon Mission</button>
-        </div>
-      </header>
-
-      <div class="proximity-radar-panel" [ngClass]="'temp-' + temperature().toLowerCase()">
-        <div class="radar-status">
-          <span class="radar-icon">
-            @if (temperature() === 'HOT') { 🔥 }
-            @else if (temperature() === 'COLD') { ❄️ }
-            @else { 📡 }
-          </span>
-          <p>
-            @if (currentDistance() !== null) {
-              Hint: An optimal path exists from this selection and is exactly <strong>{{ currentDistance() }} hops</strong> from the target! 
-              <span class="temp-text-indicator">({{ temperature() }} TRACKING ALERT)</span>
-            } @else {
-              Recalculating proximity matrix options across active graph database edges...
-            }
-          </p>
-        </div>
-        <div class="move-counter-badge">
-          Current Move Count: <strong>{{ currentMoveCount() }}</strong>
-        </div>
-      </div>
-
-      <div class="active-center-anchor">
-        <span class="anchor-label">CURRENT COORDINATE POSITION</span>
-        <div class="center-card">
-          <h3>{{ currentNode()?.name }}</h3>
-          <span class="pop-rating">Graph Popularity Rank: {{ currentNode()?.popularityScore }}/100</span>
-        </div>
-      </div>
-
-      @if (pathHistory().length > 0) {
-        <div class="breadcrumb-trail">
-          <button class="action-btn backtrack-btn" (click)="backtrack()">↩️ Backtrack Step</button>
-          <div class="trail-nodes">
-            @for (pastNode of pathHistory(); track pastNode.id; let last = $last) {
-              <span class="trail-chip">{{ pastNode.name }}</span>
-              @if (!last) { <span class="trail-arrow">➔</span> }
-            }
-          </div>
-        </div>
-      }
-
-      <div class="neighborhood-selection-zone">
-        <h4>Select Next Expansion Pathway (Cap: 5 Options Max):</h4>
+      <div class="split-screen-layout">
         
-        @if (isLoading()) {
-          <div class="grid-loading-shimmer">
-            <p>Querying real-time network intersections...</p>
-          </div>
-        } @else {
-          <div class="curated-options-grid">
-            @for (artist of neighbors(); track artist.id) {
-              <button 
-                class="choice-grid-btn"
-                [disabled]="visitedNodeIds().has(artist.id)"
-                [ngClass]="{'disabled-visited': visitedNodeIds().has(artist.id)}"
-                (click)="makeHop(artist)">
-                <div class="btn-primary-info">
-                  <span class="artist-choice-name">{{ artist.name }}</span>
-                  <span class="artist-choice-pop">Score: {{ artist.popularityScore }}</span>
-                </div>
-                <div class="btn-liner-notes">
-                  <small>{{ artist.connectionReason || 'Database relation node.' }}</small>
-                </div>
-              </button>
+        <div class="column-left play-matrix">
+          <div class="neighborhood-selection-zone">
+            <h4>Select Next Expansion Pathway:</h4>
+            
+            @if (isLoading()) {
+              <div class="grid-loading-shimmer">
+                <p>Querying real-time network intersections...</p>
+              </div>
+            } @else {
+              <div class="curated-options-grid">
+                @for (artist of neighbors(); track artist.id) {
+                  
+                 <button 
+                    class="choice-grid-btn"
+                    [disabled]="visitedNodeIds().has(artist.id)"
+                    [ngClass]="{'disabled-visited': visitedNodeIds().has(artist.id)}"
+                    (click)="makeHop(artist)"
+                    (mouseenter)="setInspectedArtist(artist)"
+                    (mouseleave)="clearInspectedArtist()"
+                    (focusin)="setInspectedArtist(artist)"
+                    (focusout)="clearInspectedArtist()">
+                    
+                    <div class="btn-primary-info">
+                      <div class="artist-name-group">
+                        <span class="artist-choice-name">{{ artist.name }}</span>
+                        
+                        @if (artist.routeHint) {
+                          @if (artist.hintRevealed) {
+                            <span class="route-hint-badge" 
+                                  [ngClass]="{
+                                    'hint-optimal': artist.routeHint.includes('Closer') || artist.routeHint.includes('Target'),
+                                    'hint-detour': artist.routeHint.includes('Detour'),
+                                    'hint-deadend': artist.routeHint.includes('Dead End')
+                                  }">
+                              {{ artist.routeHint }}
+                            </span>
+                          } @else {
+                            <button 
+                              type="button"
+                              class="shroud-unlock-trigger"
+                              [disabled]="hintCharges() === 0"
+                              (click)="$event.stopPropagation(); revealNodeHint(artist)">
+                              🔍 Reveal Hint
+                            </button>
+                          }
+                        }
+                      </div>
+                      <span class="artist-choice-pop">Score: {{ artist.popularityScore }}</span>
+                    </div>
+                    
+                    <div class="btn-hint-subtext">
+                      {{ artist.country || 'Global' }} | {{ artist.artistType || artist.type }} | {{ artist.startYear || '?' }} – {{ artist.endYear || 'Present' }}
+                    </div>
+                  </button>
+
+                }
+              </div>
             }
           </div>
-        }
+
+          <div class="static-inspector-panel">
+            <div class="inspector-header">
+              <span class="icon">📻</span> [ ACTIVE ITEM LINER NOTES ]
+            </div>
+            <div class="inspector-body">
+              @if (activeInspectedNode()) {
+                <div class="active-node-details">
+                  <p class="inspect-title">Inspecting: <strong>{{ activeInspectedNode()?.name }}</strong></p>
+                  <p class="inspect-context">🌍 {{ activeInspectedNode()?.connectionReason }}</p>
+                </div>
+              } @else {
+                <span class="idle-text">Status: Hover over an expansion pathway to analyze graph vertex data...</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="column-right telemetry-hud">
+          
+          <header class="gameplay-header">
+            <div class="mission-objectives">
+              <div class="objective-card start">
+                <small>Starting Position</small>
+                <strong>{{ startNode()?.name }}</strong>
+              </div>
+              <div class="objective-divider">➔</div>
+              <div class="objective-card target">
+                <small>Target Destination</small>
+                <strong>{{ targetNode()?.name }}</strong>
+              </div>
+            </div>
+          </header>
+
+          <div class="active-center-anchor">
+            <span class="anchor-label">CURRENT COORDINATE POSITION</span>
+            <div class="center-card">
+              <h3>{{ currentNode()?.name }}</h3>
+              <span class="pop-rating">Graph Popularity Rank: {{ currentNode()?.popularityScore }}/100</span>
+            </div>
+          </div>
+          <div class="resource-hud-panel">
+          <div class="hud-item">
+            <span class="hud-label">💡 Strategic Radar Bank:</span>
+            <span class="hud-value" [ngClass]="{'hud-critical': hintCharges() === 0}">
+              {{ hintCharges() }} / 10 Charges Left
+            </span>
+            </div>
+          </div>
+          <div class="proximity-radar-panel" [ngClass]="'temp-' + temperature().toLowerCase()">
+            <div class="radar-status">
+              <span class="radar-icon">
+                @if (temperature() === 'HOT') { 🔥 }
+                @else if (temperature() === 'COLD') { ❄️ }
+                @else { 📡 }
+              </span>
+              <p>
+                @if (currentDistance() !== null) {
+                  Hint: An optimal path exists from this selection and is exactly <strong>{{ currentDistance() }} hops</strong> from the target! 
+                  <span class="temp-text-indicator">({{ temperature() }} TRACKING ALERT)</span>
+                } @else {
+                  Recalculating proximity matrix options across active graph database edges...
+                }
+              </p>
+            </div>
+            <div class="move-counter-badge">
+              Current Move Count: <strong>{{ currentMoveCount() }}</strong><br>
+              Par Goal: <strong>{{ optimalHops() }} Hops</strong>
+            </div>
+          </div>
+
+          @if (pathHistory().length > 0) {
+            <div class="breadcrumb-trail">
+              <button class="action-btn backtrack-btn" (click)="backtrack()">↩️ Backtrack Step</button>
+              <div class="trail-nodes">
+                @for (pastNode of pathHistory(); track pastNode.id; let last = $last) {
+                  <span class="trail-chip">{{ pastNode.name }}</span>
+                  @if (!last) { <span class="trail-arrow">➔</span> }
+                }
+              </div>
+            </div>
+          }
+
+          <div class="session-actions">
+            <button class="action-btn surrender-btn" (click)="abandonMission()">🏳️ Abandon Mission</button>
+          </div>
+
+        </div>
+
       </div>
     </section>
   }

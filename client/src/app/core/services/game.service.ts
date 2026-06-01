@@ -8,7 +8,13 @@ export interface Node {
   name: string;
   type: string;
   popularityScore: number;
-  connectionReason?: string; // Captures relationship "Liner Notes" text strings
+  country?: string;
+  artistType?: string;
+  startYear?: number;
+  endYear?: number;
+  connectionReason?: string;
+  routeHint?: string; // 👈 Declared here so the HTML template can bind to it
+  hintRevealed?: boolean; // 👈 NEW: Client-side visibility toggle
 }
 
 export interface ExpandNodeResponse {
@@ -45,11 +51,19 @@ export class GameService {
     return this.http.get<GameSession>(`${this.apiUrl}/game/start`);
   }
 
-  expandNode(nodeId: string, targetId?: string): Observable<ExpandNodeResponse> {
+  expandNode(nodeId: string, targetId?: string, visitedIds?: string[]): Observable<ExpandNodeResponse> {
     let params = new HttpParams();
     if (targetId) {
       params = params.set('targetId', targetId);
     }
+    
+    // 👈 NEW: Map the visited IDs to the URL parameters
+    if (visitedIds && visitedIds.length > 0) {
+      visitedIds.forEach(id => {
+        params = params.append('visited', id);
+      });
+    }
+    
     return this.http.get<ExpandNodeResponse>(`${this.apiUrl}/node/expand/${nodeId}`, { params });
   }
 

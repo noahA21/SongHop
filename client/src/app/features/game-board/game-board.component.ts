@@ -31,8 +31,8 @@ export class GameBoardComponent implements OnInit {
   readonly pathHistory = signal<Node[]>([]);
   readonly optimalHops = signal<number | null>(null);
   readonly currentDistance = signal<number | null>(null);
+  readonly hintCharges = signal<number>(3);
   
-  // Real-time delta tracker for radar graphics
   readonly temperature = signal<'HOT' | 'WARM' | 'COLD' | 'NEUTRAL'>('NEUTRAL');
 
   readonly isLoading = signal<boolean>(false);
@@ -40,6 +40,9 @@ export class GameBoardComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly hasWon = signal<boolean>(false);
   readonly isPathVerified = signal<boolean>(false);
+
+  // Updated to track the full Node object for the static inspection panel
+  readonly activeInspectedNode = signal<Node | null>(null);
 
   readonly currentMoveCount = computed(() => this.pathHistory().length);
   readonly visitedNodeIds = computed(() => new Set<string>(this.pathHistory().map(n => n.id)));
@@ -75,36 +78,39 @@ export class GameBoardComponent implements OnInit {
         this.gameState.set('welcome');
       }
     });
+    this.hintCharges.set(10); // 👈 Reset back to 3 charges on fresh runs
+    this.gameState.set('playing');
   }
-
+  // 3. Add this helper method to handle the deduction and unmasking logic
+  revealNodeHint(artist: Node): void {
+    if (this.hintCharges() > 0 && !artist.hintRevealed) {
+      this.hintCharges.update(c => c - 1);
+      artist.hintRevealed = true;
+    }
+  }
   loadNeighbors(nodeId: string): void {
     this.isLoading.set(true);
     const target = this.targetNode();
     
-    this.gameService.expandNode(nodeId, target?.id ?? undefined).subscribe({
+    // 👈 NEW: Extract history to send to the backend
+    const visitedArray = Array.from(this.visitedNodeIds());
+    
+    this.gameService.expandNode(nodeId, target?.id, visitedArray).subscribe({
       next: (res) => {
-        // DEFENSIVE SLICING: Force cap array at exactly 5 options
         this.neighbors.set(res.nodes.slice(0, 5));
 
-        // DETECT TEMPERATURE SHIFTS DYNAMICALLY
         const previousDist = this.currentDistance();
         const incomingDist = res.currentDistance;
 
         if (previousDist !== null && incomingDist !== null) {
-          if (incomingDist < previousDist) {
-            this.temperature.set('HOT');
-          } else if (incomingDist > previousDist) {
-            this.temperature.set('COLD');
-          } else {
-            this.temperature.set('WARM');
-          }
+          if (incomingDist < previousDist) this.temperature.set('HOT');
+          else if (incomingDist > previousDist) this.temperature.set('COLD');
+          else this.temperature.set('WARM');
         } else {
           this.temperature.set('NEUTRAL');
         }
 
-        if (incomingDist !== null && incomingDist !== undefined) {
-          this.currentDistance.set(incomingDist);
-        }
+        this.currentDistance.set(res.currentDistance);
         this.isLoading.set(false);
       },
       error: () => {
@@ -116,6 +122,8 @@ export class GameBoardComponent implements OnInit {
 
   makeHop(node: Node): void {
     if (this.visitedNodeIds().has(node.id)) return;
+
+    this.clearInspectedArtist();
 
     const current = this.currentNode();
     if (current) {
@@ -136,11 +144,12 @@ export class GameBoardComponent implements OnInit {
     const history = this.pathHistory();
     if (history.length === 0) return;
 
+    this.clearInspectedArtist();
+
     const previousNode = history[history.length - 1];
     this.pathHistory.update(h => h.slice(0, -1));
     this.currentNode.set(previousNode);
     
-    // Reset temperature on backtracking to prevent false reading clues
     this.temperature.set('NEUTRAL');
     this.loadNeighbors(previousNode.id);
   }
@@ -162,6 +171,14 @@ export class GameBoardComponent implements OnInit {
     }
     
     this.gameState.set('welcome');
+  }
+
+  setInspectedArtist(node: Node): void {
+    this.activeInspectedNode.set(node);
+  }
+
+  clearInspectedArtist(): void {
+    this.activeInspectedNode.set(null);
   }
 
   private handleWinCondition(): void {
