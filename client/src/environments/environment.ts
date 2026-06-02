@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://songhop.onrender.com/' // 👈 Your live Render URL
+  apiUrl: 'https://songhop.onrender.com/v1' // 👈 Your live Render URL
 };
