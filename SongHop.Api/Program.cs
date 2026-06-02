@@ -20,19 +20,20 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngularDev",
         policy =>
         {
-          // Read the hosting mode safely
-        if (builder.Environment.IsDevelopment())
-        {
-            policy.WithOrigins("http://localhost:4200") // Local Angular development server
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
-        else
-        {
-            policy.WithOrigins("https://delightful-dune-0bdd6f010.7.azurestaticapps.net/") // Your live production Azure link
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
+            // Read the hosting mode safely
+            if (builder.Environment.IsDevelopment())
+            {
+                policy.WithOrigins("http://localhost:4200") // Local Angular development server
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            }
+            else
+            {
+                // 🛑 FIXED: Removed the trailing slash from the end of the URL string
+                policy.WithOrigins("https://delightful-dune-0bdd6f010.7.azurestaticapps.net") 
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            }
         });
 });
 
@@ -59,6 +60,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAngularDev");
 
+// 🎯 FIXED: Explicit health check route for the root directory to stop the 404 error
+app.MapGet("/", () => "🎵 SongHop API is live and rocking!");
 
 app.MapGameEndpoints();
 app.MapNodeEndpoints();
