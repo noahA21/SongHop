@@ -18,7 +18,7 @@ public static class GameEndpoints
                        .RequireCors("AllowAngularDev")
                        .WithTags("Game Engine");
 
-        // 1. 🔍 ARTIST SEARCH
+        // ARTIST SEARCH
         group.MapGet("/node/search", async ([FromQuery] string q, SongHopDbContext db) =>
         {
             if (string.IsNullOrWhiteSpace(q)) 
@@ -81,34 +81,46 @@ public static class GameEndpoints
             return Results.BadRequest("Could not isolate a connected pair of artists. Ingest more edges via SongHopCrawler.");
         });
 
-        // 3. 🧠 BIDIRECTIONAL NEIGHBOR EXPANSION WITH DYNAMIC LINER NOTES
+      // BIDIRECTIONAL NEIGHBOR EXPANSION WITH DYNAMIC LINER NOTES
         app.MapGet("/v1/node/expand/{id}", async (
             Guid id, 
             [FromQuery] Guid? targetId,
+            [FromQuery(Name = "visited")] Guid[]? visited, // Accepts array of history IDs
             [FromServices] SongHopDbContext db,
             [FromServices] IPathfindingService pathfindingService) =>
         {
-            // Fetch raw nodes connected via edges
-            var connectedIds = await db.Edges
+            var originNode = await db.Nodes.AsNoTracking().FirstOrDefaultAsync(n => n.Id == id);
+
+            var connectedIdsQuery = db.Edges
                 .AsNoTracking()
                 .Where(e => e.SourceId == id || e.TargetId == id)
-                .Select(e => e.SourceId == id ? e.TargetId : e.SourceId)
-                .Distinct()
-                .ToListAsync();
+                .Select(e => e.SourceId == id ? e.TargetId : e.SourceId);
+
+            // EXCLUDE VISITED NODES
+            if (visited != null && visited.Any())
+            {
+                connectedIdsQuery = connectedIdsQuery.Where(connectedId => !visited.Contains(connectedId));
+            }
+
+            var connectedIds = await connectedIdsQuery.Distinct().ToListAsync();
 
             var rawNodes = await db.Nodes
                 .AsNoTracking()
                 .Where(n => connectedIds.Contains(n.Id))
                 .ToListAsync();
 
-            // Map raw database models into mutable Data Transfer Objects
             var rawNeighbors = rawNodes.Select(n => new NodeDto 
             { 
                 Id = n.Id, 
                 Name = n.Name, 
                 PopularityScore = n.PopularityScore,
                 Type = n.Type.ToString(),
-                ConnectionReason = "Collaborative network track node connection."
+                Country = n.Country,
+                ArtistType = n.ArtistType,
+                StartYear = n.StartYear,
+                EndYear = n.EndYear,
+                ConnectionReason = string.Empty,
+                RouteHint = string.Empty 
             }).ToList();
 
             if (!rawNeighbors.Any())
@@ -126,9 +138,16 @@ public static class GameEndpoints
                 }
             }
 
+            int seed = BitConverter.ToInt32(id.ToByteArray(), 0);
+            if (targetId.HasValue) 
+            {
+                seed ^= BitConverter.ToInt32(targetId.Value.ToByteArray(), 0);
+            }
+            var deterministicRandom = new Random(seed);
+
             if (rawNeighbors.Count <= 5)
             {
-                var immediatePool = rawNeighbors.OrderBy(_ => Random.Shared.Next()).ToList();
+                var immediatePool = rawNeighbors.OrderBy(_ => deterministicRandom.Next()).ToList();
                 return Results.Ok(new ExpandNodeResponse 
                 { 
                     Nodes = immediatePool, 
@@ -152,55 +171,62 @@ public static class GameEndpoints
 
             foreach (var neighbor in rawNeighbors)
             {
+                string historicalContext = "Connected via shared graph collaboration network.";
+                if (originNode != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(originNode.Country) && originNode.Country == neighbor.Country)
+                        historicalContext = $"Regional Link: Both artists originated in the {originNode.Country} music scene.";
+                    else if (originNode.StartYear.HasValue && neighbor.StartYear.HasValue && (originNode.StartYear / 10) == (neighbor.StartYear / 10))
+                        historicalContext = $"Generational Link: Both emerged during the {(originNode.StartYear / 10) * 10}s era.";
+                    else if (!string.IsNullOrWhiteSpace(originNode.ArtistType) && originNode.ArtistType == neighbor.ArtistType)
+                        historicalContext = $"Structural Link: Both operate as a {originNode.ArtistType} in the industry.";
+                }
+
+                neighbor.ConnectionReason = historicalContext;
+
                 if (neighbor.Id == targetId.Value)
                 {
-                    neighbor.ConnectionReason = "🎯 TARGET DESTINATION DETECTED! Direct gateway link confirmed.";
+                    neighbor.RouteHint = "🎯 Target Destination!";
                     immediateClimaxNode = neighbor;
                     continue;
                 }
 
                 var pathResult = await pathfindingService.FindShortestPathAsync(neighbor.Id, targetId.Value);
+                
                 if (pathResult.IsValid)
                 {
                     if (currentDistanceFromTarget.HasValue && pathResult.MoveCount < currentDistanceFromTarget.Value)
                     {
-                        neighbor.ConnectionReason = "⚡ Fast-Track Link: High relationship synergy brings you closer to destination.";
+                        neighbor.RouteHint = "🔥 Closer to Target";
                         fastTrackBucket.Add(neighbor);
                     }
                     else
                     {
-                        neighbor.ConnectionReason = "🔄 Detour Link: Valid connection path, but loops through alternative genre networks.";
+                        neighbor.RouteHint = "🔄 Detour";
                         detourBucket.Add(neighbor);
                     }
                 }
                 else
                 {
-                    neighbor.ConnectionReason = "🛑 Dead-End Link: Relationship sequence exists, but breaks trail continuity to target.";
+                    neighbor.RouteHint = "🛑 Dead End";
                     deadEndBucket.Add(neighbor);
                 }
             }
 
             var curatedSelection = new List<NodeDto>();
 
-            // 1. Always prioritize the target destination if it's an immediate neighbor
-            if (immediateClimaxNode != null)
-            {
-                curatedSelection.Add(immediateClimaxNode);
-            }
+            if (immediateClimaxNode != null) curatedSelection.Add(immediateClimaxNode);
 
-            // 2. 🔥 GUARANTEE AT LEAST ONE OPTIMAL PATHWAY (FAST-TRACK) IF IT EXISTS
             if (fastTrackBucket.Any() && immediateClimaxNode == null)
             {
-                var guaranteedOptimal = fastTrackBucket.OrderBy(_ => Random.Shared.Next()).First();
+                var guaranteedOptimal = fastTrackBucket.OrderBy(_ => deterministicRandom.Next()).First();
                 curatedSelection.Add(guaranteedOptimal);
                 fastTrackBucket.Remove(guaranteedOptimal); 
             }
 
-            // 3. Gather up alternative route options (other fast tracks or detours)
-            var secondaryPathways = fastTrackBucket.Concat(detourBucket).OrderBy(_ => Random.Shared.Next()).ToList();
-
-            // Fill up to 2 total pathway choices to maintain the maze format choice balance
-            int targetPathwaysCount = immediateClimaxNode != null ? 1 : Random.Shared.Next(1, 3); 
+            var secondaryPathways = fastTrackBucket.Concat(detourBucket).OrderBy(_ => deterministicRandom.Next()).ToList();
+            int targetPathwaysCount = immediateClimaxNode != null ? 1 : deterministicRandom.Next(1, 3); 
+            
             while (curatedSelection.Count < targetPathwaysCount && secondaryPathways.Any())
             {
                 var extraPath = secondaryPathways.First();
@@ -208,30 +234,27 @@ public static class GameEndpoints
                 secondaryPathways.Remove(extraPath);
             }
 
-            // 4. Fill the absolute remaining empty grid slots with authentic dead ends to create the challenge
             int remainingSlots = 5 - curatedSelection.Count;
-            var randomDistractions = deadEndBucket.OrderBy(_ => Random.Shared.Next()).Take(remainingSlots).ToList();
+            var randomDistractions = deadEndBucket.OrderBy(_ => deterministicRandom.Next()).Take(remainingSlots).ToList();
             curatedSelection.AddRange(randomDistractions);
 
-            // 5. Defensive Edge-Case Check: If total items are still under 5, backfill from whatever is left
             if (curatedSelection.Count < 5)
             {
                 int missingCount = 5 - curatedSelection.Count;
-                var leftoverPool = rawNeighbors.Except(curatedSelection).OrderBy(_ => Random.Shared.Next()).Take(missingCount);
+                var leftoverPool = rawNeighbors.Except(curatedSelection).OrderBy(_ => deterministicRandom.Next()).Take(missingCount);
                 curatedSelection.AddRange(leftoverPool);
             }
 
-            // 6. Randomize the final positions so the correct option isn't always sitting in button slot #1
-            var shuffledOutput = curatedSelection.OrderBy(_ => Random.Shared.Next()).ToList();
+            var shuffledOutput = curatedSelection.OrderBy(_ => deterministicRandom.Next()).ToList();
 
             return Results.Ok(new ExpandNodeResponse
             {
                 Nodes = shuffledOutput,
                 CurrentDistance = currentDistanceFromTarget
             });
-        }); // 👈 FIXED: Properly closes the expand node endpoint lambda expression!
+        });
 
-        // 4. 🧭 SMART PATHFINDING ENDPOINT
+        // SMART PATHFINDING ENDPOINT
         group.MapPost("/path/smart", async ([FromBody] FindPathRequest request, IPathfindingService pathfinder) => 
         {
             var result = await pathfinder.FindShortestPathAsync(request.StartNodeId, request.TargetNodeId);
@@ -239,7 +262,7 @@ public static class GameEndpoints
             return Results.NotFound(new { Message = "No path found." });
         });
 
-        // 5. 🛡️ AUTHENTIC PATH VALIDATION ENDPOINT
+        // AUTHENTIC PATH VALIDATION ENDPOINT
         group.MapPost("/path/validate", async ([FromBody] ValidatePathRequest request, SongHopDbContext db) => 
         {
             if (request.SubmittedPath == null || request.SubmittedPath.Count < 2)
@@ -268,7 +291,7 @@ public static class GameEndpoints
             return Results.Ok(new { IsValid = true, MoveCount = request.SubmittedPath.Count - 1 });
         });
 
-        // 6. 🧪 DATA BASING CHECK ENDPOINT
+        // DATA BASING CHECK ENDPOINT
         group.MapGet("/test/nodes", async (SongHopDbContext db) => 
         {
             return Results.Ok(await db.Nodes.AsNoTracking().ToListAsync());
@@ -282,7 +305,12 @@ public class NodeDto
     public string Name { get; set; } = string.Empty;
     public int PopularityScore { get; set; }
     public string? Type { get; set; }
+    public string? Country { get; set; }
+    public string? ArtistType { get; set; }
+    public int? StartYear { get; set; }
+    public int? EndYear { get; set; }
     public string? ConnectionReason { get; set; }
+    public string? RouteHint { get; set; }
 }
 
 public class ExpandNodeResponse

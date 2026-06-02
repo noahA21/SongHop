@@ -26,7 +26,7 @@ export interface Edge {
 
 export interface ExpandNodeResponse {
   nodes: Node[];
-  currentDistance: number | null; // Keeps frontend compile error loops safely closed
+  currentDistance: number | null;
 }
 
 export interface PathResult {

@@ -149,9 +149,9 @@
   }
 }
 
-/* =========================================================
+/* ============================================
    TELEMETRY RADAR PANEL & MISC STYLES
-   ========================================================= */
+   ============================================ */
 .proximity-radar-panel {
   display: flex;
   justify-content: space-between;
@@ -198,9 +198,7 @@
   from { transform: scale(1); }
   to { transform: scale(1.15); }
 }
-/* =========================================================
-   EXPLICIT ROUTE HINT BADGES
-   ========================================================= */
+/* EXPLICIT ROUTE HINT BADGES */
 .artist-name-group {
   display: flex;
   align-items: center;

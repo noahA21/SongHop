@@ -5,7 +5,7 @@ using SongHop.Data.Repositories;
 using SongHop.Core.Interfaces;
 using SongHop.Pathing.Services;
 using SongHop.Api.Mocks;
-using SongHop.Api.Endpoints; // 🌟 Register Endpoints namespace
+using SongHop.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +49,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAngularDev");
 
-// 🌟 Clear Routing Execution Module Mapping
+
 app.MapGameEndpoints();
 app.MapNodeEndpoints();
 

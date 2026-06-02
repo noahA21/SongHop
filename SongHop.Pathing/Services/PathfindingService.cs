@@ -56,9 +56,7 @@ public class PathfindingService : IPathfindingService
         return new PathResult(new List<Guid>(), 0, 0.0, false);
     }
 
-    /// <summary>
-    /// Validates an entire submitted player run in a single efficient database pass.
-    /// </summary>
+    // Validates an entire submitted player run in a single efficient database pass.
     public async Task<PathResult> ValidatePathAsync(List<Guid> submittedPath)
     {
         if (submittedPath == null || submittedPath.Count == 0)

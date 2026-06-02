@@ -53,7 +53,7 @@ using var scope = serviceProvider.CreateScope();
 var db = scope.ServiceProvider.GetRequiredService<SongHopDbContext>();
 var lastFmClient = scope.ServiceProvider.GetRequiredService<LastFmClientService>();
 
-Console.WriteLine("📥 Extracting graph layers from music ecosystem...");
+Console.WriteLine(" Extracting graph layers from music ecosystem...");
 
 while (discoveryQueue.Count > 0 && processedNodesCount < MAX_NODES_CAP)
 {
@@ -93,22 +93,22 @@ while (discoveryQueue.Count > 0 && processedNodesCount < MAX_NODES_CAP)
 
         // Persist the batch modifications securely to PostgreSQL
         await db.SaveChangesAsync();
-        Console.WriteLine($"✅ Mapped batch connections for '{sourceNode.Name}' to Postgres context.");
+        Console.WriteLine($" Mapped batch connections for '{sourceNode.Name}' to Postgres context.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Pipeline block on artist '{currentName}': {ex.Message}");
+        Console.WriteLine($" Pipeline block on artist '{currentName}': {ex.Message}");
     }
 }
 
-Console.WriteLine("\n🏁 SongHop ETL Pipeline completed successfully!");
+Console.WriteLine("\n SongHop ETL Pipeline completed successfully!");
 Console.WriteLine($"Total processed hub nodes: {processedNodesCount}. Core graph is now populated.");
 
 #endregion
 // =========================================================================
 // NEW: PHASE 2 - BATCH MUSICBRAINZ ENRICHMENT
 // =========================================================================
-Console.WriteLine("\n⏳ Transitioning to Phase 2: MusicBrainz Metadata Enrichment...");
+Console.WriteLine("\n Transitioning to Phase 2: MusicBrainz Metadata Enrichment...");
 
 // Create a clean scope to pull the DB context and MusicBrainz service
 using (var enrichmentScope = serviceProvider.CreateScope())

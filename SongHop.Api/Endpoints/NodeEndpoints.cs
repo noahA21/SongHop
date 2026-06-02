@@ -23,7 +23,7 @@ public static class NodeEndpoints
 
         
 
-        // 🌟 NEW: Full-text Database Query Search Engine
+        // Full-text Database Query Search Engine
         // group.MapGet("/search", async (string q, SongHopDbContext db) =>
         // {
         //     if (string.IsNullOrWhiteSpace(q))

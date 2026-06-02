@@ -78,10 +78,10 @@ export class GameBoardComponent implements OnInit {
         this.gameState.set('welcome');
       }
     });
-    this.hintCharges.set(10); // 👈 Reset back to 3 charges on fresh runs
+    this.hintCharges.set(10); // Reset back to n charges on fresh runs
     this.gameState.set('playing');
   }
-  // 3. Add this helper method to handle the deduction and unmasking logic
+  // helps handle the deduction and unmasking logic
   revealNodeHint(artist: Node): void {
     if (this.hintCharges() > 0 && !artist.hintRevealed) {
       this.hintCharges.update(c => c - 1);
@@ -92,7 +92,7 @@ export class GameBoardComponent implements OnInit {
     this.isLoading.set(true);
     const target = this.targetNode();
     
-    // 👈 NEW: Extract history to send to the backend
+    // Extract history to send to the backend
     const visitedArray = Array.from(this.visitedNodeIds());
     
     this.gameService.expandNode(nodeId, target?.id, visitedArray).subscribe({

@@ -15,9 +15,8 @@ public class LastFmClientService
             ?? throw new InvalidOperationException("Critical: Last.fm ApiKey is missing from configuration files.");
     }
 
-    /// <summary>
-    /// Fetches up to 20 highly related artists using Last.fm's similarity graph.
-    /// </summary>
+
+    // Fetches up to 20 highly related artists using Last.fm's similarity graph.
     public async Task<List<LastFmArtistDto>> GetRelatedArtistsAsync(string artistName)
     {
         var encodedName = Uri.EscapeDataString(artistName);

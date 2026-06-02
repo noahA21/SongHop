@@ -13,8 +13,8 @@ export interface Node {
   startYear?: number;
   endYear?: number;
   connectionReason?: string;
-  routeHint?: string; // 👈 Declared here so the HTML template can bind to it
-  hintRevealed?: boolean; // 👈 NEW: Client-side visibility toggle
+  routeHint?: string; // Declared here so the HTML template can bind to it
+  hintRevealed?: boolean; //  Client-side visibility toggle
 }
 
 export interface ExpandNodeResponse {
