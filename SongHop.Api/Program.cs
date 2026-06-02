@@ -20,9 +20,19 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngularDev",
         policy =>
         {
-            policy.WithOrigins("http://localhost:4200")
+          // Read the hosting mode safely
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.WithOrigins("http://localhost:4200") // Local Angular development server
                   .AllowAnyHeader()
                   .AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins("https://delightful-dune-0bdd6f010.7.azurestaticapps.net/") // Your live production Azure link
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
         });
 });
 

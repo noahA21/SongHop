@@ -10,19 +10,15 @@ using SongHop.Data;
 
 namespace SongHop.Api.Endpoints;
 
-public static class GameEndpoints
-{
-    public static void MapGameEndpoints(this IEndpointRouteBuilder app)
-    {
+public static class GameEndpoints{
+    public static void MapGameEndpoints(this IEndpointRouteBuilder app){
         var group = app.MapGroup("/v1")
                        .RequireCors("AllowAngularDev")
                        .WithTags("Game Engine");
 
         // ARTIST SEARCH
-        group.MapGet("/node/search", async ([FromQuery] string q, SongHopDbContext db) =>
-        {
-            if (string.IsNullOrWhiteSpace(q)) 
-            {
+        group.MapGet("/node/search", async ([FromQuery] string q, SongHopDbContext db) =>{
+            if (string.IsNullOrWhiteSpace(q)) {
                 return Results.Ok(new List<Node>());
             }
 
@@ -35,9 +31,8 @@ public static class GameEndpoints
             return Results.Ok(results);
         });
 
-        // 2. 🎮 WINNABLE SESSION GENERATOR
-        group.MapGet("/game/start", async (SongHopDbContext db, IPathfindingService pathfinder) =>
-        {
+        // WINNABLE SESSION GENERATOR
+        group.MapGet("/game/start", async (SongHopDbContext db, IPathfindingService pathfinder) =>{
             var nodes = await db.Nodes.AsNoTracking().ToListAsync();
             if (nodes.Count < 2) return Results.BadRequest("Insufficient node data in database.");
 
@@ -45,8 +40,7 @@ public static class GameEndpoints
             int maxAttempts = 100;
             int attempt = 0;
 
-            while (attempt < maxAttempts)
-            {
+            while (attempt < maxAttempts){
                 var startNode = nodes[random.Next(nodes.Count)];
                 var targetNode = nodes[random.Next(nodes.Count)];
 
@@ -54,10 +48,8 @@ public static class GameEndpoints
 
                 var pathResult = await pathfinder.FindShortestPathAsync(startNode.Id, targetNode.Id);
 
-                if (pathResult.IsValid && pathResult.MoveCount >= 2 && pathResult.MoveCount <= 5)
-                {
-                    return Results.Ok(new
-                    {
+                if (pathResult.IsValid && pathResult.MoveCount >= 2 && pathResult.MoveCount <= 5){
+                    return Results.Ok(new{
                         StartNode = startNode,
                         TargetNode = targetNode,
                         OptimalHops = pathResult.MoveCount
@@ -66,13 +58,10 @@ public static class GameEndpoints
                 attempt++;
             }
 
-            foreach (var startNode in nodes.OrderBy(_ => random.Next()).Take(10))
-            {
-                foreach (var targetNode in nodes.Where(n => n.Id != startNode.Id).OrderBy(_ => random.Next()).Take(10))
-                {
+            foreach (var startNode in nodes.OrderBy(_ => random.Next()).Take(10)){
+                foreach (var targetNode in nodes.Where(n => n.Id != startNode.Id).OrderBy(_ => random.Next()).Take(10)){
                     var pathResult = await pathfinder.FindShortestPathAsync(startNode.Id, targetNode.Id);
-                    if (pathResult.IsValid)
-                    {
+                    if (pathResult.IsValid){
                         return Results.Ok(new { StartNode = startNode, TargetNode = targetNode, OptimalHops = pathResult.MoveCount });
                     }
                 }
@@ -87,8 +76,7 @@ public static class GameEndpoints
             [FromQuery] Guid? targetId,
             [FromQuery(Name = "visited")] Guid[]? visited, // Accepts array of history IDs
             [FromServices] SongHopDbContext db,
-            [FromServices] IPathfindingService pathfindingService) =>
-        {
+            [FromServices] IPathfindingService pathfindingService) =>{
             var originNode = await db.Nodes.AsNoTracking().FirstOrDefaultAsync(n => n.Id == id);
 
             var connectedIdsQuery = db.Edges
@@ -97,8 +85,7 @@ public static class GameEndpoints
                 .Select(e => e.SourceId == id ? e.TargetId : e.SourceId);
 
             // EXCLUDE VISITED NODES
-            if (visited != null && visited.Any())
-            {
+            if (visited != null && visited.Any()){
                 connectedIdsQuery = connectedIdsQuery.Where(connectedId => !visited.Contains(connectedId));
             }
 
@@ -109,8 +96,7 @@ public static class GameEndpoints
                 .Where(n => connectedIds.Contains(n.Id))
                 .ToListAsync();
 
-            var rawNeighbors = rawNodes.Select(n => new NodeDto 
-            { 
+            var rawNeighbors = rawNodes.Select(n => new NodeDto { 
                 Id = n.Id, 
                 Name = n.Name, 
                 PopularityScore = n.PopularityScore,
@@ -123,30 +109,25 @@ public static class GameEndpoints
                 RouteHint = string.Empty 
             }).ToList();
 
-            if (!rawNeighbors.Any())
-            {
+            if (!rawNeighbors.Any()){
                 return Results.Ok(new ExpandNodeResponse { Nodes = new List<NodeDto>(), CurrentDistance = null });
             }
 
             int? currentDistanceFromTarget = null;
-            if (targetId.HasValue)
-            {
+            if (targetId.HasValue){
                 var currentPathEvaluation = await pathfindingService.FindShortestPathAsync(id, targetId.Value);
-                if (currentPathEvaluation.IsValid)
-                {
+                if (currentPathEvaluation.IsValid){
                     currentDistanceFromTarget = currentPathEvaluation.MoveCount;
                 }
             }
 
             int seed = BitConverter.ToInt32(id.ToByteArray(), 0);
-            if (targetId.HasValue) 
-            {
+            if (targetId.HasValue) {
                 seed ^= BitConverter.ToInt32(targetId.Value.ToByteArray(), 0);
             }
             var deterministicRandom = new Random(seed);
 
-            if (rawNeighbors.Count <= 5)
-            {
+            if (rawNeighbors.Count <= 5){
                 var immediatePool = rawNeighbors.OrderBy(_ => deterministicRandom.Next()).ToList();
                 return Results.Ok(new ExpandNodeResponse 
                 { 
@@ -155,8 +136,7 @@ public static class GameEndpoints
                 });
             }
 
-            if (!targetId.HasValue)
-            {
+            if (!targetId.HasValue){
                 return Results.Ok(new ExpandNodeResponse 
                 { 
                     Nodes = rawNeighbors.Take(5).ToList(), 
@@ -169,11 +149,9 @@ public static class GameEndpoints
             var deadEndBucket = new List<NodeDto>();
             NodeDto? immediateClimaxNode = null;
 
-            foreach (var neighbor in rawNeighbors)
-            {
+            foreach (var neighbor in rawNeighbors){
                 string historicalContext = "Connected via shared graph collaboration network.";
-                if (originNode != null)
-                {
+                if (originNode != null){
                     if (!string.IsNullOrWhiteSpace(originNode.Country) && originNode.Country == neighbor.Country)
                         historicalContext = $"Regional Link: Both artists originated in the {originNode.Country} music scene.";
                     else if (originNode.StartYear.HasValue && neighbor.StartYear.HasValue && (originNode.StartYear / 10) == (neighbor.StartYear / 10))
@@ -184,8 +162,7 @@ public static class GameEndpoints
 
                 neighbor.ConnectionReason = historicalContext;
 
-                if (neighbor.Id == targetId.Value)
-                {
+                if (neighbor.Id == targetId.Value){
                     neighbor.RouteHint = "🎯 Target Destination!";
                     immediateClimaxNode = neighbor;
                     continue;
@@ -193,10 +170,8 @@ public static class GameEndpoints
 
                 var pathResult = await pathfindingService.FindShortestPathAsync(neighbor.Id, targetId.Value);
                 
-                if (pathResult.IsValid)
-                {
-                    if (currentDistanceFromTarget.HasValue && pathResult.MoveCount < currentDistanceFromTarget.Value)
-                    {
+                if (pathResult.IsValid){
+                    if (currentDistanceFromTarget.HasValue && pathResult.MoveCount < currentDistanceFromTarget.Value){
                         neighbor.RouteHint = "🔥 Closer to Target";
                         fastTrackBucket.Add(neighbor);
                     }
@@ -206,8 +181,7 @@ public static class GameEndpoints
                         detourBucket.Add(neighbor);
                     }
                 }
-                else
-                {
+                else{
                     neighbor.RouteHint = "🛑 Dead End";
                     deadEndBucket.Add(neighbor);
                 }
@@ -217,8 +191,7 @@ public static class GameEndpoints
 
             if (immediateClimaxNode != null) curatedSelection.Add(immediateClimaxNode);
 
-            if (fastTrackBucket.Any() && immediateClimaxNode == null)
-            {
+            if (fastTrackBucket.Any() && immediateClimaxNode == null){
                 var guaranteedOptimal = fastTrackBucket.OrderBy(_ => deterministicRandom.Next()).First();
                 curatedSelection.Add(guaranteedOptimal);
                 fastTrackBucket.Remove(guaranteedOptimal); 
@@ -227,8 +200,7 @@ public static class GameEndpoints
             var secondaryPathways = fastTrackBucket.Concat(detourBucket).OrderBy(_ => deterministicRandom.Next()).ToList();
             int targetPathwaysCount = immediateClimaxNode != null ? 1 : deterministicRandom.Next(1, 3); 
             
-            while (curatedSelection.Count < targetPathwaysCount && secondaryPathways.Any())
-            {
+            while (curatedSelection.Count < targetPathwaysCount && secondaryPathways.Any()){
                 var extraPath = secondaryPathways.First();
                 curatedSelection.Add(extraPath);
                 secondaryPathways.Remove(extraPath);
@@ -238,8 +210,7 @@ public static class GameEndpoints
             var randomDistractions = deadEndBucket.OrderBy(_ => deterministicRandom.Next()).Take(remainingSlots).ToList();
             curatedSelection.AddRange(randomDistractions);
 
-            if (curatedSelection.Count < 5)
-            {
+            if (curatedSelection.Count < 5){
                 int missingCount = 5 - curatedSelection.Count;
                 var leftoverPool = rawNeighbors.Except(curatedSelection).OrderBy(_ => deterministicRandom.Next()).Take(missingCount);
                 curatedSelection.AddRange(leftoverPool);
@@ -247,16 +218,14 @@ public static class GameEndpoints
 
             var shuffledOutput = curatedSelection.OrderBy(_ => deterministicRandom.Next()).ToList();
 
-            return Results.Ok(new ExpandNodeResponse
-            {
+            return Results.Ok(new ExpandNodeResponse{
                 Nodes = shuffledOutput,
                 CurrentDistance = currentDistanceFromTarget
             });
         });
 
         // SMART PATHFINDING ENDPOINT
-        group.MapPost("/path/smart", async ([FromBody] FindPathRequest request, IPathfindingService pathfinder) => 
-        {
+        group.MapPost("/path/smart", async ([FromBody] FindPathRequest request, IPathfindingService pathfinder) => {
             var result = await pathfinder.FindShortestPathAsync(request.StartNodeId, request.TargetNodeId);
             if (result.IsValid) return Results.Ok(result);
             return Results.NotFound(new { Message = "No path found." });
@@ -265,16 +234,14 @@ public static class GameEndpoints
         // AUTHENTIC PATH VALIDATION ENDPOINT
         group.MapPost("/path/validate", async ([FromBody] ValidatePathRequest request, SongHopDbContext db) => 
         {
-            if (request.SubmittedPath == null || request.SubmittedPath.Count < 2)
-            {
+            if (request.SubmittedPath == null || request.SubmittedPath.Count < 2){
                 return Results.Ok(new { IsValid = false, Message = "A valid path requires a minimum of 2 connected nodes." });
             }
 
             for (int i = 0; i < request.SubmittedPath.Count - 1; i++)
             {
                 if (!Guid.TryParse(request.SubmittedPath[i], out Guid currentId) || 
-                    !Guid.TryParse(request.SubmittedPath[i + 1], out Guid nextId))
-                {
+                    !Guid.TryParse(request.SubmittedPath[i + 1], out Guid nextId)){
                     return Results.Ok(new { IsValid = false, Message = "Malformed graph node identifiers encountered." });
                 }
 
@@ -282,8 +249,7 @@ public static class GameEndpoints
                     (e.SourceId == currentId && e.TargetId == nextId) || 
                     (e.SourceId == nextId && e.TargetId == currentId));
 
-                if (!linkExists)
-                {
+                if (!linkExists){
                     return Results.Ok(new { IsValid = false, Message = "Verification failed. Broken link sequence detected." });
                 }
             }
@@ -292,15 +258,13 @@ public static class GameEndpoints
         });
 
         // DATA BASING CHECK ENDPOINT
-        group.MapGet("/test/nodes", async (SongHopDbContext db) => 
-        {
+        group.MapGet("/test/nodes", async (SongHopDbContext db) => {
             return Results.Ok(await db.Nodes.AsNoTracking().ToListAsync());
         });
     }
 }
 
-public class NodeDto
-{
+public class NodeDto{
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public int PopularityScore { get; set; }
@@ -313,8 +277,7 @@ public class NodeDto
     public string? RouteHint { get; set; }
 }
 
-public class ExpandNodeResponse
-{
+public class ExpandNodeResponse{
     public IEnumerable<NodeDto> Nodes { get; set; } = Array.Empty<NodeDto>();
     public int? CurrentDistance { get; set; }
 }

@@ -2,6 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface Node {
   id: string;
@@ -39,7 +40,7 @@ export interface PathValidationResult {
 })
 export class GameService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:5017/v1'; 
+  private readonly apiUrl = environment.apiUrl;
 
   searchArtists(query: string): Observable<Node[]> {
     return this.http.get<Node[]>(`${this.apiUrl}/node/search`, {
