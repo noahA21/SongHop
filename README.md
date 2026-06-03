@@ -5,6 +5,59 @@ SongHop is a full-stack, data driven graph traversal game where players navigate
 The project is actively deployed and can be played live here:
 👉 **[Live Website](https://delightful-dune-0bdd6f010.7.azurestaticapps.net)**
 
+---------
+
+Here is an interactive diagram that details the entire system and how the various components interact.
+### SongHop
+```mermaid
+graph TD
+
+    classDef external fill:#f9f9f9,stroke:#ccc,stroke-width:1px,stroke-dasharray: 5 5
+    classDef local fill:#eef,stroke:#33f,stroke-width:1px
+    classDef cicd fill:#efe,stroke:#0a0,stroke-width:1px
+    classDef cloud fill:#fee,stroke:#f00,stroke-width:2px
+    classDef client fill:#ffe,stroke:#aa0,stroke-width:1px
+
+    subgraph External["External Metadata Ecosystem"]
+        A["Last.fm / MusicBrainz APIs"]:::external
+    end
+
+    subgraph Local["Development & Data Pipeline"]
+        B["Developer Machine"]:::local
+        C["Local ETL Ingestion Tool"]:::local
+    end
+
+    subgraph DevOps["CI/CD Workflows"]
+        D["GitHub Repository"]:::cicd
+        E["GitHub Actions Runner"]:::cicd
+        F["Render Build System"]:::cicd
+    end
+
+    subgraph Cloud["Production Multi-Cloud Host Layer"]
+        G["Azure Static Web Apps"]:::cloud
+        H["Render Cloud Web Service\nLinux Docker Container\nASP.NET Core 10 Minimal API"]:::cloud
+        I["Neon DB\nServerless PostgreSQL"]:::cloud
+    end
+
+    subgraph Client["Runtime Client State Machine"]
+        J["User Browser\nAngular 17+ Application Shell\nReactive Angular Signals Engine"]:::client
+    end
+
+    A -->|"Public Data Feeds"| C
+    B -->|"Executes Script"| C
+    C -->|"Bulk Insert via SSL Connection"| I
+
+    B -->|"git push main"| D
+    D -->|"Trigger Client Compilation"| E
+    D -->|"Trigger Webhook Hook"| F
+    E -->|"Publishes SPA Bundle dist/client/browser"| G
+    F -->|"Compiles Self-Contained Release Docker Engine"| H
+
+    G -->|"Asynchronously Serves UI View Layout"| J
+    J -->|"Stateless Cross-Origin HTTPS Requests /v1/game/*"| H
+    H -->|"EF Core Domain Node & Edge Index Queries"| I
+```
+
 ---
 
 ## Architecture & Engineering
