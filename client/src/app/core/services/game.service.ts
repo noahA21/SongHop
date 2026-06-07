@@ -13,9 +13,10 @@ export interface Node {
   artistType?: string;
   startYear?: number;
   endYear?: number;
+  genres?: string;
   connectionReason?: string;
-  routeHint?: string; // Declared here so the HTML template can bind to it
-  hintRevealed?: boolean; //  Client-side visibility toggle
+  routeHint?: string; 
+  hintRevealed?: boolean;
 }
 
 export interface ExpandNodeResponse {
@@ -33,6 +34,7 @@ export interface PathValidationResult {
   isValid: boolean;
   moveCount: number;
   message?: string;
+  lineageTrail?: Node[];
 }
 
 @Injectable({

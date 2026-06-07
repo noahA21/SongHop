@@ -160,11 +160,11 @@
             </div>
           </div>
           <div class="resource-hud-panel">
-          <div class="hud-item">
-            <span class="hud-label">💡 Strategic Radar Bank:</span>
-            <span class="hud-value" [ngClass]="{'hud-critical': hintCharges() === 0}">
-              {{ hintCharges() }} / 10 Charges Left
-            </span>
+            <div class="hud-item">
+              <span class="hud-label">💡 Strategic Radar Bank:</span>
+              <span class="hud-value" [ngClass]="{'hud-critical': hintCharges() === 0}">
+                {{ hintCharges() }} / 10 Charges Left
+              </span>
             </div>
           </div>
           <div class="proximity-radar-panel" [ngClass]="'temp-' + temperature().toLowerCase()">
@@ -216,25 +216,33 @@
       <div class="victory-card">
         <div class="trophy-animation">🏆</div>
         <h1>Path Authenticated!</h1>
-        <p>You successfully linked <strong>{{ startNode()?.name }}</strong> to <strong>{{ targetNode()?.name }}</strong> in <strong>{{ currentMoveCount() + 1 }} total hops</strong>.</p>
+        <p>You successfully linked <strong>{{ startNode()?.name }}</strong> to <strong>{{ targetNode()?.name }}</strong> in <strong>{{ lineageTrail().length - 1 }} total hops</strong>.</p>
         
-        <div class="verified-summary">
-          <h3>Validated Path Trace Matrix:</h3>
-          <div class="summary-line">
-            <span class="step-badge origin">Start</span>
-            <strong>{{ startNode()?.name }}</strong>
-          </div>
-          @for (historyNode of pathHistory(); track historyNode.id) {
-            <div class="summary-divider">↓</div>
-            <div class="summary-line">
-              <span class="step-badge intermediate">Hop</span>
-              <span>{{ historyNode.name }}</span>
-            </div>
-          }
-          <div class="summary-divider">↓</div>
-          <div class="summary-line">
-            <span class="step-badge climax">Target</span>
-            <strong>{{ targetNode()?.name }}</strong>
+        <div class="lineage-timeline">
+          <h3>Your Journey's Lineage</h3>
+          
+          <div class="timeline-track">
+            @for (node of lineageTrail(); track node.id; let first = $first; let last = $last) {
+              <div class="timeline-step" [class.is-start]="first" [class.is-target]="last">
+                
+                <div class="node-indicator">
+                  <span class="dot"></span>
+                  @if (!last) { <span class="connector-line"></span> }
+                </div>
+
+                <div class="node-details-card">
+                  <div class="node-header">
+                    <h4>{{ node.name }}</h4>
+                    @if (node.startYear) {
+                      <span class="node-meta">Est. {{ node.startYear }}</span>
+                    }
+                  </div>
+                  
+                  <p class="connection-reason">{{ node.connectionReason }}</p>
+                </div>
+
+              </div>
+            }
           </div>
         </div>
 

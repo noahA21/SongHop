@@ -40,6 +40,7 @@ export class GameBoardComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly hasWon = signal<boolean>(false);
   readonly isPathVerified = signal<boolean>(false);
+  readonly lineageTrail = signal<Node[]>([]);
 
   // Updated to track the full Node object for the static inspection panel
   readonly activeInspectedNode = signal<Node | null>(null);
@@ -199,6 +200,10 @@ export class GameBoardComponent implements OnInit {
         if (result.isValid) {
           this.hasWon.set(true);
           this.isPathVerified.set(true);
+          
+          // 🌟 Populate your lineage signal with the sequential storyboard data
+          this.lineageTrail.set(result.lineageTrail || []);
+          
           this.gameState.set('victory');
 
           const start = this.startNode();
