@@ -19,7 +19,7 @@ public class PostgresGraphRepository : IGraphRepository
         // Fetch all edges radiating OUT from this node
         return await _context.Edges
             .Where(e => e.SourceId == nodeId)
-            .AsNoTracking() // Performance boost: we don't need change tracking for pathfinding
+            .AsNoTracking() // we don't need change tracking for pathfinding
             .ToListAsync();
     }
 
@@ -33,8 +33,8 @@ public class PostgresGraphRepository : IGraphRepository
             .AsNoTracking()
             .ToListAsync();
 
-        // Crucial: EF Core doesn't guarantee the returned array matches the input order.
-        // We re-sort them here to preserve the exact sequence of the game path.
+        // EF Core doesn't guarantee the returned array matches the input order.
+        // We resort them here to preserve the exact sequence of the game path.
         return idList
             .Select(id => nodes.FirstOrDefault(n => n.Id == id))
             .Where(n => n != null)!;

@@ -43,6 +43,7 @@ builder.Services.AddSingleton<IGraphRepository>(provider =>
     provider.GetRequiredService<MockGraphRepository>());
 builder.Services.AddScoped<IGraphRepository, PostgresGraphRepository>();
 
+builder.Services.AddScoped<IRouteHintService, RouteHintService>();
 // Configure Pathfinding
 builder.Services.AddScoped<PathfindingService>();
 builder.Services.AddScoped<IPathfindingService, PathfindingService>();
@@ -64,6 +65,5 @@ app.UseCors("AllowAngularDev");
 app.MapGet("/", () => "🎵 SongHop API is live and rocking!");
 
 app.MapGameEndpoints();
-app.MapNodeEndpoints();
 
 app.Run();

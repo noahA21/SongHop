@@ -70,26 +70,30 @@ public static class GameEndpoints{
             return Results.BadRequest("Could not isolate a connected pair of artists. Ingest more edges via SongHopCrawler.");
         });
 
-      // BIDIRECTIONAL NEIGHBOR EXPANSION WITH DYNAMIC LINER NOTES
-        app.MapGet("/v1/node/expand/{id}", async (
+        // BIDIRECTIONAL NEIGHBOR EXPANSION WITH DYNAMIC LINER NOTES
+        group.MapGet("/node/expand/{id}", async (
             Guid id, 
             [FromQuery] Guid? targetId,
-            [FromQuery(Name = "visited")] Guid[]? visited, // Accepts array of history IDs
+            [FromQuery(Name = "visited")] Guid[]? visited, 
             [FromServices] SongHopDbContext db,
             [FromServices] IPathfindingService pathfindingService) =>{
             var originNode = await db.Nodes.AsNoTracking().FirstOrDefaultAsync(n => n.Id == id);
 
-            var connectedIdsQuery = db.Edges
+            var connectedEdgesQuery = db.Edges
                 .AsNoTracking()
-                .Where(e => e.SourceId == id || e.TargetId == id)
-                .Select(e => e.SourceId == id ? e.TargetId : e.SourceId);
+                .Where(e => e.SourceId == id || e.TargetId == id);
+
+            var connectedEdges = await connectedEdgesQuery.ToListAsync();
+            
+            var connectedIds = connectedEdges
+                .Select(e => e.SourceId == id ? e.TargetId : e.SourceId)
+                .Distinct()
+                .ToList();
 
             // EXCLUDE VISITED NODES
             if (visited != null && visited.Any()){
-                connectedIdsQuery = connectedIdsQuery.Where(connectedId => !visited.Contains(connectedId));
+                connectedIds = connectedIds.Where(connectedId => !visited.Contains(connectedId)).ToList();
             }
-
-            var connectedIds = await connectedIdsQuery.Distinct().ToListAsync();
 
             var rawNodes = await db.Nodes
                 .AsNoTracking()
@@ -150,14 +154,48 @@ public static class GameEndpoints{
             NodeDto? immediateClimaxNode = null;
 
             foreach (var neighbor in rawNeighbors){
-                string historicalContext = "Connected via shared graph collaboration network.";
-                if (originNode != null){
-                    if (!string.IsNullOrWhiteSpace(originNode.Country) && originNode.Country == neighbor.Country)
-                        historicalContext = $"Regional Link: Both artists originated in the {originNode.Country} music scene.";
-                    else if (originNode.StartYear.HasValue && neighbor.StartYear.HasValue && (originNode.StartYear / 10) == (neighbor.StartYear / 10))
-                        historicalContext = $"Generational Link: Both emerged during the {(originNode.StartYear / 10) * 10}s era.";
-                    else if (!string.IsNullOrWhiteSpace(originNode.ArtistType) && originNode.ArtistType == neighbor.ArtistType)
-                        historicalContext = $"Structural Link: Both operate as a {originNode.ArtistType} in the industry.";
+                // Pull matching edge metadata to isolate the precise collaboration reason
+                var edge = connectedEdges.FirstOrDefault(e => 
+                    (e.SourceId == id && e.TargetId == neighbor.Id) || 
+                    (e.SourceId == neighbor.Id && e.TargetId == id));
+
+                var neighborNodeType = rawNodes.First(n => n.Id == neighbor.Id).Type;
+
+                string historicalContext = "Connected via shared music performance networks.";
+                if (originNode != null)
+                {
+                    // 🌟 REWRITE: Map specific lineage based on Node Types and Edge Relationships
+                    if (originNode.Type == NodeType.Artist && neighborNodeType == NodeType.Track)
+                    {
+                        historicalContext = $"{originNode.Name} performed, recorded, or collaborated on the track '{neighbor.Name}'.";
+                    }
+                    else if (originNode.Type == NodeType.Track && neighborNodeType == NodeType.Artist)
+                    {
+                        historicalContext = $"{neighbor.Name} is credited as a main contributor or performer on the track '{originNode.Name}'.";
+                    }
+                    else if (originNode.Type == NodeType.Artist && neighborNodeType == NodeType.Album)
+                    {
+                        historicalContext = $"{originNode.Name} released the studio project or album '{neighbor.Name}'.";
+                    }
+                    else if (originNode.Type == NodeType.Album && neighborNodeType == NodeType.Artist)
+                    {
+                        historicalContext = $"The album '{originNode.Name}' was written, produced, or released by {neighbor.Name}.";
+                    }
+                    else if (originNode.Type == NodeType.Album && neighborNodeType == NodeType.Track)
+                    {
+                        historicalContext = $"The track '{neighbor.Name}' is featured directly on the album tracklist for '{originNode.Name}'.";
+                    }
+                    else if (originNode.Type == NodeType.Track && neighborNodeType == NodeType.Album)
+                    {
+                        historicalContext = $"This track is a key part of the official track selection for the album '{neighbor.Name}'.";
+                    }
+                    else if (originNode.Type == NodeType.Artist && neighborNodeType == NodeType.Artist && edge != null)
+                    {
+                        if (edge.Type == EdgeType.BandMembership)
+                            historicalContext = $"{originNode.Name} and {neighbor.Name} share historical lineup connections or band memberships.";
+                        else if (edge.Type == EdgeType.RelatedArtist)
+                            historicalContext = $"{originNode.Name} and {neighbor.Name} share close artistic influences, styles, or musical associations.";
+                    }
                 }
 
                 neighbor.ConnectionReason = historicalContext;
@@ -172,7 +210,7 @@ public static class GameEndpoints{
                 
                 if (pathResult.IsValid){
                     if (currentDistanceFromTarget.HasValue && pathResult.MoveCount < currentDistanceFromTarget.Value){
-                        neighbor.RouteHint = "🔥 Closer to Target";
+                        neighbor.RouteHint = "📈 Closer to Target";
                         fastTrackBucket.Add(neighbor);
                     }
                     else
@@ -231,30 +269,148 @@ public static class GameEndpoints{
             return Results.NotFound(new { Message = "No path found." });
         });
 
-        // AUTHENTIC PATH VALIDATION ENDPOINT
+        // AUTHENTIC PATH VALIDATION & STORYBOARD TRAIL ENGINE
         group.MapPost("/path/validate", async ([FromBody] ValidatePathRequest request, SongHopDbContext db) => 
         {
             if (request.SubmittedPath == null || request.SubmittedPath.Count < 2){
-                return Results.Ok(new { IsValid = false, Message = "A valid path requires a minimum of 2 connected nodes." });
+                return Results.Ok(new { 
+                    IsValid = false, 
+                    Message = "A valid path requires a minimum of 2 connected nodes.",
+                    LineageTrail = Array.Empty<NodeDto>()
+                });
             }
 
-            for (int i = 0; i < request.SubmittedPath.Count - 1; i++)
+            var parsedIds = new List<Guid>();
+            foreach (var stringId in request.SubmittedPath)
             {
-                if (!Guid.TryParse(request.SubmittedPath[i], out Guid currentId) || 
-                    !Guid.TryParse(request.SubmittedPath[i + 1], out Guid nextId)){
-                    return Results.Ok(new { IsValid = false, Message = "Malformed graph node identifiers encountered." });
+                if (!Guid.TryParse(stringId, out Guid nodeGuid))
+                {
+                    return Results.Ok(new { 
+                        IsValid = false, 
+                        Message = "Malformed graph node identifiers encountered.",
+                        LineageTrail = Array.Empty<NodeDto>()
+                    });
                 }
+                parsedIds.Add(nodeGuid);
+            }
+
+            // Verify sequential edges across the trail path
+            for (int i = 0; i < parsedIds.Count - 1; i++)
+            {
+                Guid currentId = parsedIds[i];
+                Guid nextId = parsedIds[i + 1];
 
                 bool linkExists = await db.Edges.AsNoTracking().AnyAsync(e => 
                     (e.SourceId == currentId && e.TargetId == nextId) || 
                     (e.SourceId == nextId && e.TargetId == currentId));
 
                 if (!linkExists){
-                    return Results.Ok(new { IsValid = false, Message = "Verification failed. Broken link sequence detected." });
+                    return Results.Ok(new { 
+                        IsValid = false, 
+                        Message = "Verification failed. Broken link sequence detected.",
+                        LineageTrail = Array.Empty<NodeDto>()
+                    });
                 }
             }
 
-            return Results.Ok(new { IsValid = true, MoveCount = request.SubmittedPath.Count - 1 });
+            // Batch-fetch nodes and related linking edges across the submitted timeline path
+            var nodesMap = await db.Nodes
+                .AsNoTracking()
+                .Where(n => parsedIds.Contains(n.Id))
+                .ToDictionaryAsync(n => n.Id);
+
+            var structuralEdges = await db.Edges
+                .AsNoTracking()
+                .Where(e => parsedIds.Contains(e.SourceId) && parsedIds.Contains(e.TargetId))
+                .ToListAsync();
+
+            var enrichedTrail = new List<NodeDto>();
+            Node? previousNode = null;
+
+            for (int i = 0; i < parsedIds.Count; i++)
+            {
+                Guid targetId = parsedIds[i];
+                if (!nodesMap.TryGetValue(targetId, out var currentNode))
+                {
+                    return Results.Ok(new {
+                        IsValid = false,
+                        Message = "Verification aborted. A sequence node missing from records.",
+                        LineageTrail = Array.Empty<NodeDto>()
+                    });
+                }
+
+                string narrativeContext;
+                if (i == 0)
+                {
+                    narrativeContext = "Starting Point";
+                }
+                else
+                {
+                    var edge = structuralEdges.FirstOrDefault(e => 
+                        (e.SourceId == previousNode!.Id && e.TargetId == currentNode.Id) || 
+                        (e.SourceId == currentNode.Id && e.TargetId == previousNode!.Id));
+
+                    narrativeContext = "Connected via mutual performance or production associations.";
+                    if (previousNode != null)
+                    {
+                        // 🌟 REWRITE: Generate concrete descriptions on the victory screen
+                        if (previousNode.Type == NodeType.Artist && currentNode.Type == NodeType.Track)
+                        {
+                            narrativeContext = $"{previousNode.Name} performed, recorded, or collaborated on the track '{currentNode.Name}'.";
+                        }
+                        else if (previousNode.Type == NodeType.Track && currentNode.Type == NodeType.Artist)
+                        {
+                            narrativeContext = $"{currentNode.Name} is credited as a main contributor or performer on the track '{previousNode.Name}'.";
+                        }
+                        else if (previousNode.Type == NodeType.Artist && currentNode.Type == NodeType.Album)
+                        {
+                            narrativeContext = $"{previousNode.Name} released the studio project or album '{currentNode.Name}'.";
+                        }
+                        else if (previousNode.Type == NodeType.Album && currentNode.Type == NodeType.Artist)
+                        {
+                            narrativeContext = $"The album '{previousNode.Name}' was written, produced, or released by {currentNode.Name}.";
+                        }
+                        else if (previousNode.Type == NodeType.Album && currentNode.Type == NodeType.Track)
+                        {
+                            narrativeContext = $"The track '{currentNode.Name}' is featured directly on the album tracklist for '{previousNode.Name}'.";
+                        }
+                        else if (previousNode.Type == NodeType.Track && currentNode.Type == NodeType.Album)
+                        {
+                            narrativeContext = $"This track is a key part of the official track selection for the album '{currentNode.Name}'.";
+                        }
+                        else if (previousNode.Type == NodeType.Artist && currentNode.Type == NodeType.Artist && edge != null)
+                        {
+                            if (edge.Type == EdgeType.BandMembership)
+                                narrativeContext = $"{previousNode.Name} and {currentNode.Name} share historical lineup connections or band memberships.";
+                            else if (edge.Type == EdgeType.RelatedArtist)
+                                narrativeContext = $"{previousNode.Name} and {currentNode.Name} share close artistic influences, styles, or musical associations.";
+                        }
+                    }
+                }
+
+                enrichedTrail.Add(new NodeDto
+                {
+                    Id = currentNode.Id,
+                    Name = currentNode.Name,
+                    PopularityScore = currentNode.PopularityScore,
+                    Type = currentNode.Type.ToString(),
+                    Country = currentNode.Country,
+                    ArtistType = currentNode.ArtistType,
+                    StartYear = currentNode.StartYear,
+                    EndYear = currentNode.EndYear,
+                    ConnectionReason = narrativeContext,
+                    RouteHint = string.Empty
+                });
+
+                previousNode = currentNode;
+            }
+
+            return Results.Ok(new { 
+                IsValid = true, 
+                MoveCount = enrichedTrail.Count - 1,
+                Message = "Path verified! Victory confirmed.",
+                LineageTrail = enrichedTrail
+            });
         });
 
         // DATA BASING CHECK ENDPOINT

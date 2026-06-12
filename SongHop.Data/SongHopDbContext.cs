@@ -28,19 +28,18 @@ public class SongHopDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
 
-            // Set up the self-referencing relationship using your Guid FKs
             entity.HasOne<Node>()
                   .WithMany()
                   .HasForeignKey(e => e.SourceId)
-                  .OnDelete(DeleteBehavior.Restrict); // Prevents accidental deletes tearing down the graph
+                  .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne<Node>()
                   .WithMany()
                   .HasForeignKey(e => e.TargetId)
                   .OnDelete(DeleteBehavior.Restrict);
                   
-            // Enforce unique edges so we don't map the same connection twice
-            entity.HasIndex(e => new { e.SourceId, e.TargetId })
+            //  Allows multiple distinct relationships between the same two artists
+            entity.HasIndex(e => new { e.SourceId, e.TargetId, e.Type, e.ContextTitle })
                   .IsUnique();
         });
     }

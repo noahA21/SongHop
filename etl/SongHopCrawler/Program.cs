@@ -12,8 +12,8 @@ var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
 // 1. Tell .NET to build the configuration chain
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("etl/SongHopCrawler/appsettings.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("etl/SongHopCrawler/appsettings.Development.json", optional: true, reloadOnChange: true)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
     .Build();
 
 var connectionString = configuration.GetConnectionString("DefaultConnection")
@@ -106,75 +106,105 @@ Console.WriteLine($"Total processed hub nodes: {processedNodesCount}. Core graph
 
 #endregion
 // =========================================================================
-// NEW: PHASE 2 - BATCH MUSICBRAINZ ENRICHMENT
+// NEW: PHASE 2 - METADATA & LAST.FM GENRE ENRICHMENT (THE BETTER METHOD)
 // =========================================================================
-Console.WriteLine("\n Transitioning to Phase 2: MusicBrainz Metadata Enrichment...");
+Console.WriteLine("\n Transitioning to Phase 2: Metadata & Last.fm Genre Enrichment...");
 
-// Create a clean scope to pull the DB context and MusicBrainz service
 using (var enrichmentScope = serviceProvider.CreateScope())
 {
     var dbContext = enrichmentScope.ServiceProvider.GetRequiredService<SongHopDbContext>();
     var mbClient = enrichmentScope.ServiceProvider.GetRequiredService<MusicBrainzClientService>();
+    var lfClient = enrichmentScope.ServiceProvider.GetRequiredService<LastFmClientService>();
 
-    // 1. Query Postgres for nodes that have a MusicBrainz ID but haven't been enriched yet
+    // Locate nodes missing country profile details or structural genre classifications
     var unenrichedNodes = await dbContext.Nodes
-        .Where(n => n.ExternalId != null && n.Country == null)
+        .Where(n => n.Country == null || n.Genres == null)
         .ToListAsync();
 
-    Console.WriteLine($"🔍 Found {unenrichedNodes.Count} artists awaiting metadata enrichment.");
+    Console.WriteLine($" Found {unenrichedNodes.Count} artists awaiting metadata enrichment.");
 
     int enrichedCount = 0;
 
     foreach (var node in unenrichedNodes)
     {
-        Console.Write($"📥 Enriching [{node.Name}] ({node.ExternalId})... ");
+        Console.Write($" Enriching [{node.Name}]... ");
+        bool hasChanges = false;
 
-        // 2. Fetch the metadata from the MusicBrainz API
-        var metadata = await mbClient.GetArtistMetadataAsync(node.ExternalId!);
-
-        if (metadata != null)
+        try
         {
-            // 3. Map the fields over to our mutable properties in the Node record body
-            node.Country = metadata.Country;
-            node.ArtistType = metadata.ArtistType;
-            node.StartYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.Begin);
-            node.EndYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.End);
+            // 1. Ingest Rich Genre tags via Last.fm API
+            if (string.IsNullOrWhiteSpace(node.Genres))
+            {
+                var topTags = await lfClient.GetTopTagsAsync(node.Name);
+                if (topTags != null && topTags.Any())
+                {
+                    // Filter out descriptive noise, year matches, or identity loops
+                    var pureGenres = topTags
+                        .Select(t => t.Name.ToLower().Trim())
+                        .Where(tag => tag.Length > 2 
+                                      && tag != node.Name.ToLower() 
+                                      && !tag.Contains("seen live") 
+                                      && !tag.Contains("favorite"))
+                        .Take(3);
 
-            // 4. Save progress immediately node-by-node. 
-            // Because we have a mandatory 1.2 second delay anyway, saving individually 
-            // takes milliseconds and guarantees that we don't lose progress if the app is stopped.
-            await dbContext.SaveChangesAsync();
-            
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("SUCCESS");
-            Console.ResetColor();
-            enrichedCount++;
+                    if (pureGenres.Any())
+                    {
+                        node.Genres = string.Join(", ", pureGenres);
+                        hasChanges = true;
+                    }
+                }
+            }
+
+            // 2. Ingest Country & Timeline via MusicBrainz API (If valid MBID exists)
+            if (node.ExternalId != null && !node.ExternalId.StartsWith("NAME:") && node.Country == null)
+            {
+                var metadata = await mbClient.GetArtistMetadataAsync(node.ExternalId!);
+                if (metadata != null)
+                {
+                    node.Country = metadata.Country;
+                    node.ArtistType = metadata.ArtistType;
+                    node.StartYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.Begin);
+                    node.EndYear = ParseYearFromMusicBrainz(metadata.LifeSpan?.End);
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges)
+            {
+                await dbContext.SaveChangesAsync();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("SUCCESS");
+                Console.ResetColor();
+                enrichedCount++;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("SKIPPED (No updates found)");
+                Console.ResetColor();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("SKIPPED (No data found or rate limited)");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"FAILED: {ex.Message}");
             Console.ResetColor();
         }
 
-        // 5. THE ARRESTING THROTTLE: Enforce strict compliance with MusicBrainz's 1-request-per-second rule
-        await Task.Delay(1200); 
+        // Throttle crawler iterations to comply with traffic regulations safely
+        await Task.Delay(1100); 
     }
 
-    Console.WriteLine($"\n🎉 Phase 2 Complete! Successfully enriched {enrichedCount} nodes with structural catalog metadata.");
+    Console.WriteLine($"\n Phase 2 Complete! Successfully enriched {enrichedCount} nodes with structural catalog metadata.");
 }
 
-// 💡 Helper function to parse MusicBrainz dates (like "1993-05-12" or "1993") into a clean C# integer
 int? ParseYearFromMusicBrainz(string? dateString)
 {
     if (string.IsNullOrWhiteSpace(dateString)) return null;
-    
-    // MusicBrainz dates always start with the 4-digit year
     if (dateString.Length >= 4 && int.TryParse(dateString.Substring(0, 4), out int year))
     {
         return year;
     }
-    
     return null;
 }
 
@@ -183,8 +213,6 @@ int? ParseYearFromMusicBrainz(string? dateString)
 async Task<Node> GetOrCreateRootNodeAsync(SongHopDbContext context, string name)
 {
     var normalizedName = name.Trim().ToLower();
-    
-    // Look up via name or an explicit identifier token
     var node = await context.Nodes.FirstOrDefaultAsync(n => 
         n.Name.ToLower() == normalizedName || n.ExternalId == $"NAME:{normalizedName}");
         
@@ -206,23 +234,20 @@ async Task<Node> GetOrCreateRootNodeAsync(SongHopDbContext context, string name)
 
 async Task<Node> UpsertTargetNodeAsync(SongHopDbContext context, LastFmArtistDto dto)
 {
-    // Build a unique tracking token if MusicBrainz ID is missing to protect the unique index
     string uniqueExternalId = !string.IsNullOrWhiteSpace(dto.Mbid) 
         ? dto.Mbid 
         : $"NAME:{dto.Name.Trim().ToLower()}";
 
-    // Deduplicate at the data entry point
     var existingNode = await context.Nodes.FirstOrDefaultAsync(n => n.ExternalId == uniqueExternalId);
     if (existingNode != null) return existingNode;
 
-    // Grab a high-quality large image URL if present in the collection
     var largeImage = dto.Image?.FirstOrDefault(i => i.Size == "large")?.Url;
 
     var newNode = new Node(
         Id: Guid.NewGuid(),
         Name: dto.Name,
         Type: NodeType.Artist,
-        PopularityScore: 50, // Default baseline for similarity nodes
+        PopularityScore: 50, 
         ImageUrl: largeImage,
         ExternalId: uniqueExternalId
     );
@@ -231,22 +256,38 @@ async Task<Node> UpsertTargetNodeAsync(SongHopDbContext context, LastFmArtistDto
     return newNode;
 }
 
-async Task EnsureEdgeExistsAsync(SongHopDbContext context, Guid sourceGuid, Guid targetGuid)
+async Task EnsureEdgeExistsAsync(
+    SongHopDbContext context, 
+    Guid sourceGuid, 
+    Guid targetGuid,
+    EdgeType type = EdgeType.RelatedArtist,
+    string? contextTitle = null,
+    int? contextYear = null,
+    string? contextRole = null)
 {
     if (sourceGuid == targetGuid) return;
 
-    // Verify a matching edge pair doesn't already link these nodes
-    var edgeExists = await context.Edges.AnyAsync(e => e.SourceId == sourceGuid && e.TargetId == targetGuid);
+    var edgeExists = await context.Edges.AnyAsync(e => 
+        e.SourceId == sourceGuid && 
+        e.TargetId == targetGuid && 
+        e.Type == type && 
+        e.ContextTitle == contextTitle);
+
     if (!edgeExists)
     {
         var newEdge = new Edge(
             Id: Guid.NewGuid(),
             SourceId: sourceGuid,
             TargetId: targetGuid,
-            Type: EdgeType.RelatedArtist,
-            IsDirected: true,
+            Type: type,
+            IsDirected: type == EdgeType.RelatedArtist,
             BaseWeight: 1.0
-        );
+        )
+        {
+            ContextTitle = contextTitle,
+            ContextYear = contextYear,
+            ContextRole = contextRole
+        };
         await context.Edges.AddAsync(newEdge);
     }
 }
